@@ -99,3 +99,6 @@ pretrained
 
 # temp file
 convert_all.sh
+
+scripts
+.idea

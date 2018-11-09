@@ -1,9 +1,10 @@
 import tensorflow as tf
-import ops
-import utils
-from reader import Reader
-from discriminator import Discriminator
-from generator import Generator
+from input.reader import UnityReader, MPIIGazeReader
+
+import util.ops as ops
+import util.utils as utils
+from models.generator import Generator
+from models.discriminator import Discriminator
 
 REAL_LABEL = 0.9
 
@@ -12,14 +13,15 @@ class CycleGAN:
                X_train_file='',
                Y_train_file='',
                batch_size=1,
-               image_size=256,
+               image_size=(36,60),
                use_lsgan=True,
                norm='instance',
                lambda1=10,
                lambda2=10,
                learning_rate=2e-4,
                beta1=0.5,
-               ngf=64
+               ngf=64,
+               tf_session=None,
               ):
     """
     Args:
@@ -45,6 +47,7 @@ class CycleGAN:
     self.beta1 = beta1
     self.X_train_file = X_train_file
     self.Y_train_file = Y_train_file
+    self.tf_session = tf_session
 
     self.is_training = tf.placeholder_with_default(True, shape=[], name='is_training')
 
@@ -56,25 +59,26 @@ class CycleGAN:
         self.is_training, norm=norm, use_sigmoid=use_sigmoid)
 
     self.fake_x = tf.placeholder(tf.float32,
-        shape=[batch_size, image_size, image_size, 3])
+        shape=[batch_size, image_size[0], image_size[1], 3])
     self.fake_y = tf.placeholder(tf.float32,
-        shape=[batch_size, image_size, image_size, 3])
+        shape=[batch_size, image_size[0], image_size[1], 3])
+
+    self.X_reader = UnityReader(self.X_train_file, name='X',
+       image_size=self.image_size, batch_size=self.batch_size, tf_session=self.tf_session)
+
+    self.Y_reader = MPIIGazeReader(self.Y_train_file, name='Y',
+       image_size=self.image_size, batch_size=self.batch_size, tf_session=self.tf_session)
 
   def model(self):
-    X_reader = Reader(self.X_train_file, name='X',
-        image_size=self.image_size, batch_size=self.batch_size)
-    Y_reader = Reader(self.Y_train_file, name='Y',
-        image_size=self.image_size, batch_size=self.batch_size)
-
-    x = X_reader.feed()
-    y = Y_reader.feed()
+    x = self.X_reader.feed()
+    y = self.Y_reader.feed()
 
     cycle_loss = self.cycle_consistency_loss(self.G, self.F, x, y)
 
     # X -> Y
     fake_y = self.G(x)
     G_gan_loss = self.generator_loss(self.D_Y, fake_y, use_lsgan=self.use_lsgan)
-    G_loss =  G_gan_loss + cycle_loss
+    G_loss = G_gan_loss + cycle_loss
     D_Y_loss = self.discriminator_loss(self.D_Y, y, self.fake_y, use_lsgan=self.use_lsgan)
 
     # Y -> X
@@ -156,7 +160,7 @@ class CycleGAN:
     else:
       # use cross entropy
       error_real = -tf.reduce_mean(ops.safe_log(D(y)))
-      error_fake = -tf.reduce_mean(ops.safe_log(1-D(fake_y)))
+      error_fake = -tf.reduce_mean(ops.safe_log(1 - D(fake_y)))
     loss = (error_real + error_fake) / 2
     return loss
 

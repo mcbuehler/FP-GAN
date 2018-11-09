@@ -1,5 +1,12 @@
 import tensorflow as tf
 
+def get_index_channels(data_format):
+  # not used yet
+  if data_format == "NHWC":
+    return 3
+  else:
+    return 1
+
 ## Layers: follow the naming convention used in the original paper
 ### Generator layers
 def c7s1_k(input, k, reuse=False, norm='instance', activation='relu', is_training=True, name='c7s1_k'):
@@ -115,8 +122,8 @@ def uk(input, k, reuse=False, norm='instance', is_training=True, name=None, outp
       shape=[3, 3, k, input_shape[3]])
 
     if not output_size:
-      output_size = input_shape[1]*2
-    output_shape = [input_shape[0], output_size, output_size, k]
+      output_size = [dim * 2 for dim in input_shape[1:3]]
+    output_shape = [input_shape[0], output_size[0], output_size[1], k]
     fsconv = tf.nn.conv2d_transpose(input, weights,
         output_shape=output_shape,
         strides=[1, 2, 2, 1], padding='SAME')
