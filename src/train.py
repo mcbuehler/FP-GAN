@@ -9,7 +9,7 @@ from util.utils import ImagePool
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 1, 'batch size, default: 1')
+tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 1')
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_bool('use_lsgan', True,
@@ -26,7 +26,7 @@ tf.flags.DEFINE_float('beta1', 0.5,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_float('pool_size', 50,
                       'size of image buffer that stores previously generated images, default: 50')
-tf.flags.DEFINE_integer('ngf', 64,
+tf.flags.DEFINE_integer('ngf', 32,
                         'number of gen filters in first conv layer, default: 64')
 tf.flags.DEFINE_string('X', '../data/UnityEyes',
                        'X tfrecords file for training, default: ../data/tfrecords/apple.tfrecords')
@@ -37,7 +37,7 @@ tf.flags.DEFINE_string('load_model', None,
 tf.flags.DEFINE_integer('n_steps', 200000,
                        'number of steps to train.')
 tf.flags.DEFINE_string('data_format', 'NHWC',
-                       'NHWC or NCHW. default: NHWC')
+                       'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
 
 def train():

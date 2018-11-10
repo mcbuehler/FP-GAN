@@ -5,7 +5,7 @@ import util.utils as utils
 
 
 class Generator:
-  def __init__(self, name, is_training, ngf=64, norm='instance', image_size=128):
+  def __init__(self, name, is_training, ngf=64, norm='instance', image_size=None):
     self.name = name
     self.reuse = False
     self.ngf = ngf
