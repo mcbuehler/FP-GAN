@@ -20,6 +20,8 @@ tf.flags.DEFINE_integer('lambda1', 10,
                         'weight for forward cycle loss (X->Y->X), default: 10')
 tf.flags.DEFINE_integer('lambda2', 10,
                         'weight for backward cycle loss (Y->X->Y), default: 10')
+tf.flats.DEFINE_integer('lambda_identity', 1,
+                        "weight for identity transformation loss X -> Y, meaning ||G(x) - x||_1")
 tf.flags.DEFINE_float('learning_rate', 2e-4,
                       'initial learning rate for Adam, default: 0.0002')
 tf.flags.DEFINE_float('beta1', 0.5,
@@ -67,6 +69,7 @@ def train():
                 norm=FLAGS.norm,
                 lambda1=FLAGS.lambda1,
                 lambda2=FLAGS.lambda2,
+                lambda_identity=FLAGS.lambda_identity,
                 learning_rate=FLAGS.learning_rate,
                 beta1=FLAGS.beta1,
                 ngf=FLAGS.ngf,
