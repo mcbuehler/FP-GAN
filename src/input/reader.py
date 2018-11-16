@@ -19,7 +19,7 @@ class UnityReader():
     """
     self.name = name
     with tf.name_scope(self.name):
-      self.image_queue = UnityEyes(tf_session, batch_size, file_path, testing=False, eye_image_shape=image_size, data_format="NHWC")
+      self.image_queue = UnityEyes(tf_session, batch_size, file_path, testing=False, eye_image_shape=image_size, data_format="NHWC", shuffle=True)
       self.image_queue.create_and_start_threads()
 
   def feed(self):
@@ -28,7 +28,6 @@ class UnityReader():
       images: 4D tensor [batch_size, image_width, image_height, image_depth]
     """
     images = self.image_queue.output_tensors['eye']
-    tf.summary.image('input_unity', images)
     return images
 
 
@@ -44,7 +43,7 @@ class MPIIGazeReader():
     self.name = name
 
     with tf.name_scope(self.name):
-      self.image_queue = HDF5Source(tf_session, batch_size, file_path, testing=False, eye_image_shape=image_size, data_format="NHWC")
+      self.image_queue = HDF5Source(tf_session, batch_size, file_path, testing=False, eye_image_shape=image_size, data_format="NHWC", shuffle=True)
       self.image_queue.create_and_start_threads()
 
   def feed(self):
@@ -53,6 +52,5 @@ class MPIIGazeReader():
       images: 4D tensor [batch_size, image_width, image_height, image_depth]
     """
     images = self.image_queue.output_tensors['image']
-    tf.summary.image('input_mpiigaze', images)
     return images
 
