@@ -9,7 +9,7 @@ from util.utils import ImagePool
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 1')
+tf.flags.DEFINE_integer('batch_size', 8, 'batch size, default: 1')
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_bool('use_lsgan', True,
@@ -35,7 +35,7 @@ tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye_zhang.h5',
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
 tf.flags.DEFINE_integer('n_steps', 200000,
-                       'number of steps to train.')
+                       'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
 tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
@@ -73,7 +73,7 @@ def train():
                 tf_session=sess,
             )
             G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x = cycle_gan.model()
-            optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss)
+            optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss, n_steps=FLAGS.n_steps)
 
             summary_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
@@ -96,7 +96,7 @@ def train():
             fake_Y_pool = ImagePool(FLAGS.pool_size)
             fake_X_pool = ImagePool(FLAGS.pool_size)
 
-            while not coord.should_stop():
+            while step < FLAGS.n_steps and not coord.should_stop():
                 # get previously generated images
                 fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
 
@@ -129,9 +129,6 @@ def train():
                     logging.info("Model saved in file: %s" % save_path)
 
                 step += 1
-                if step > FLAGS.n_steps:
-                    coord.request_stop()
-
         except KeyboardInterrupt:
             logging.info('Interrupted')
             coord.request_stop()
