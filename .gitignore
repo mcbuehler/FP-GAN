@@ -102,3 +102,6 @@ convert_all.sh
 
 scripts
 .idea
+
+# test python files
+test_*

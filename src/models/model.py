@@ -27,17 +27,20 @@ class CycleGAN:
                  ):
         """
         Args:
-          X_train_file: string, X tfrecords file for training
-          Y_train_file: string Y tfrecords file for training
+          X_train_file: string UnityEyes folder
+          Y_train_file: string MPIIGaze h5 File
           batch_size: integer, batch size
-          image_size: integer, image size
+          image_size: list(height, width)
           lambda1: integer, weight for forward cycle loss (X->Y->X)
           lambda2: integer, weight for backward cycle loss (Y->X->Y)
+          lambda_identity: integer, weight for
+            identity transformation loss (X -> Y). Same for both directions.
           use_lsgan: boolean
           norm: 'instance' or 'batch'
           learning_rate: float, initial learning rate for Adam
           beta1: float, momentum term of Adam
           ngf: number of gen filters in first conv layer
+          tf_session: tensorflow session. Needed for loading data sources.
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
@@ -135,14 +138,17 @@ class CycleGAN:
 
     def optimize(self, G_loss, D_Y_loss, F_loss, D_X_loss, n_steps=200000):
         def make_optimizer(loss, variables, name='Adam'):
-            """ Adam optimizer with learning rate 0.0002 for the first 100k steps (~100 epochs)
-                and a linearly decaying rate that goes to zero over the next 100k steps
+            """ Adam optimizer with learning rate 0.0002 for the first 100k
+            steps (~100 epochs)
+                and a linearly decaying rate that goes to zero over
+                the next 100k steps
             """
-            # why can global step be 0 here? Does it automatically increase after each optimisation step?
+            # why can global step be 0 here? Does it automatically
+            # increase after each optimisation step?
             global_step = tf.Variable(0, trainable=False)
             starter_learning_rate = self.learning_rate
             end_learning_rate = 0.0
-            start_decay_step = int(n_steps/2)
+            start_decay_step = int(n_steps / 2)
             decay_steps = n_steps - start_decay_step
             beta1 = self.beta1
             learning_rate = (
@@ -219,7 +225,8 @@ class CycleGAN:
 
     def identity_transform_loss(self, x, fake_y):
         """
-        L1 Identity transform loss. This ensures that fake_y is not too different from x
+        L1 Identity transform loss. This ensures that fake_y is
+        not too different from x
         :param x: input to generator
         :param fake_y: G(x)
         :return:

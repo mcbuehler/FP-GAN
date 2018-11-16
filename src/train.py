@@ -20,8 +20,9 @@ tf.flags.DEFINE_integer('lambda1', 10,
                         'weight for forward cycle loss (X->Y->X), default: 10')
 tf.flags.DEFINE_integer('lambda2', 10,
                         'weight for backward cycle loss (Y->X->Y), default: 10')
-tf.flags.DEFINE_integer('lambda_identity', 1,
-                        "weight for identity transformation loss X -> Y, meaning ||G(x) - x||_1")
+tf.flags.DEFINE_integer('lambda_identity', 5,
+                        "weight for identity transformation loss X -> Y, meaning ||G(x) - x||_1"
+                        "(same value for both directions), default: 1")
 tf.flags.DEFINE_float('learning_rate', 2e-4,
                       'initial learning rate for Adam, default: 0.0002')
 tf.flags.DEFINE_float('beta1', 0.5,
@@ -31,13 +32,13 @@ tf.flags.DEFINE_float('pool_size', 50,
 tf.flags.DEFINE_integer('ngf', 32,
                         'number of gen filters in first conv layer, default: 64')
 tf.flags.DEFINE_string('X', '../data/UnityEyes',
-                       'X tfrecords file for training, default: ../data/tfrecords/apple.tfrecords')
+                       'folder containing UnityEyes')
 tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye_zhang.h5',
-                       'Y tfrecords file for training, default: ../data/tfrecords/orange.tfrecords')
+                       'h5 file with MPIIFaceGaze images')
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
-tf.flags.DEFINE_integer('n_steps', 200000,
-                       'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
+tf.flags.DEFINE_integer('n_steps', 24000,
+                        'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
 tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
@@ -56,7 +57,8 @@ def train():
 
     graph = tf.Graph()
 
-    image_size = [FLAGS.image_height, FLAGS.image_width]
+    # make sure to use image_height first
+    image_size = (FLAGS.image_height, FLAGS.image_width)
 
     with tf.Session(graph=graph) as sess:
         with graph.as_default():
@@ -76,7 +78,8 @@ def train():
                 tf_session=sess,
             )
             G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x = cycle_gan.model()
-            optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss, n_steps=FLAGS.n_steps)
+            optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss,
+                                            n_steps=FLAGS.n_steps)
 
             summary_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
@@ -100,15 +103,16 @@ def train():
             fake_X_pool = ImagePool(FLAGS.pool_size)
 
             while step < FLAGS.n_steps and not coord.should_stop():
-                # get previously generated images
                 fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
 
                 _, G_loss_val, D_Y_loss_val, F_loss_val, D_X_loss_val, summary = (
-                      sess.run(
-                          [optimizers, G_loss, D_Y_loss, F_loss, D_X_loss, summary_op],
-                          feed_dict={cycle_gan.fake_y: fake_Y_pool.query(fake_y_val),
-                                     cycle_gan.fake_x: fake_X_pool.query(fake_x_val)}
-                      )
+                    sess.run(
+                        [optimizers, G_loss, D_Y_loss, F_loss, D_X_loss,
+                         summary_op],
+                        feed_dict={
+                            cycle_gan.fake_y: fake_Y_pool.query(fake_y_val),
+                            cycle_gan.fake_x: fake_X_pool.query(fake_x_val)}
+                    )
                 )
 
                 train_writer.add_summary(summary, step)
