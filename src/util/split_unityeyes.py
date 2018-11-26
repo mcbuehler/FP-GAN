@@ -4,9 +4,10 @@ from shutil import copyfile
 import numpy as np
 path_unity = "../data/UnityEyes/"
 path_train = "../data/UnityEyesTrain/"
+path_val = "../data/UnityEyesVal/"
 path_test = "../data/UnityEyesTest/"
 
-test_size = 20000
+test_size = 200
 
 files = os.listdir(path_unity)
 ids = [re.sub(r"[^\d]", "", f) for f in files if f.endswith(".jpg")]
@@ -32,15 +33,24 @@ def copy_samples(ids, path_from, path_to):
     print("Copied {} images".format(len(ids)))
 
 
+def create_new_dataset(ids, size, from_path, to_path):
+    print("Generating {} samples...".format(size))
+    samples = np.random.choice(list(set(ids)), size=size,
+                                    replace=False)
+    copy_samples(samples, from_path, to_path)
+    return samples
+
+
 n_duplicates = len(ids) - len(set(ids))
 print("{} Duplicates found".format(n_duplicates))
 
-print("Generating test samples...")
-test_samples = np.random.choice(list(set(ids)), size=test_size, replace=False)
-set_test = set(test_samples)
-copy_samples(test_samples, path_unity, path_test)
 
-print("Generating train samples")
-train_samples = [id for id in ids if id not in test_samples]
-copy_samples(train_samples, path_unity, path_train)
+test_ids = create_new_dataset(ids, 20000, path_unity, path_test)
+
+unused_ids = [id for id in ids if id not in test_ids]
+
+validation_ids = create_new_dataset(unused_ids, 200, path_unity, path_val)
+
+unused_ids = [id for id in unused_ids if id not in validation_ids]
+copy_samples(unused_ids, path_unity, path_train)
 
