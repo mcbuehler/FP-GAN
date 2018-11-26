@@ -93,6 +93,7 @@ data/
 
 # checkpoints
 checkpoints/
+outputs/
 
 # model
 pretrained
@@ -105,3 +106,6 @@ scripts
 
 # test python files
 test_*
+
+config
+
