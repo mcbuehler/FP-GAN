@@ -103,6 +103,7 @@ class UnityEyes(BaseDataSource):
                 entry = {
                     'full_image': image,
                     'json_data': json_data,
+                    'image_id': np.array(file_stem, dtype=np.str)
                 }
                 assert entry['full_image'] is not None
                 yield entry

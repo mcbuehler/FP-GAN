@@ -11,6 +11,7 @@ import tensorflow as tf
 import os
 from tensorflow.python.tools.freeze_graph import freeze_graph
 from models.model import CycleGAN
+from unityeyes import UnityEyes
 from util import utils
 
 FLAGS = tf.flags.FLAGS
@@ -19,6 +20,9 @@ tf.flags.DEFINE_string('checkpoint_dir', '', 'checkpoints directory path')
 tf.flags.DEFINE_string('XtoY_model', 'Unity2MPII.pb', 'XtoY model name, default: apple2orange.pb')
 tf.flags.DEFINE_string('YtoX_model', 'MPII2Unity.pb', 'YtoX model name, default: orange2apple.pb')
 
+tf.flags.DEFINE_string('input', '', 'input path (folder containing images)')
+
+
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_integer('ngf', 64,
@@ -26,7 +30,7 @@ tf.flags.DEFINE_integer('ngf', 64,
 tf.flags.DEFINE_string('norm', 'instance',
                        '[instance, batch] use instance norm or batch norm, default: instance')
 
-batch_size = 32
+batch_size = 2
 image_size = (FLAGS.image_height, FLAGS.image_width)
 input_dimensions = [batch_size, image_size[0], image_size[1], 3]
 
