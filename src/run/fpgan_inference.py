@@ -43,9 +43,6 @@ def save_images(tensor, path, image_names):
         with open(filepath, 'wb') as f:
             f.write(tensor[i])
 
-    pass
-
-
 batch_size = 2
 LIMIT = 34
 
@@ -99,32 +96,37 @@ def inference():
                                 data_format="NHWC", shuffle=False)
         image_queue.create_and_start_threads()
 
+        number_of_entries = image_queue.num_entries
+        number_of_batches = int(number_of_entries/batch_size)
+
+        print("number of entries: {}".format(number_of_entries))
+        print("batch size: {}".format(batch_size))
+        print("number of batches: {}".format(number_of_batches))
 
         counter = 0
-        while True:
-            print("Counter: ", counter)
+        for i in range(number_of_batches-1):
+            print("Step {} / {}".format(counter, number_of_batches-1))
             try:
-                # batch = sess.run(iterator.get_next())
-                print(image_queue.output_tensors.keys())
-                batch = sess.run(image_queue.output_tensors['clean_eye'])
-                image_ids = sess.run(image_queue.output_tensors['image_id'])
+                eyes = image_queue.output_tensors['clean_eye']
+                ids = image_queue.output_tensors['image_id']
 
-                image_ids = [id.decode('utf-8') for id in image_ids]
+                batch_eyes, batch_ids = sess.run([eyes, ids])
+                image_ids = [id.decode('utf-8') for id in batch_ids]
 
-                if batch.shape[0] == batch_size:
-                    generated = sess.run(output_tensor, feed_dict={
-                        input_tensor: batch
-                    })
-                    save_images(generated, output_folder, image_ids)
-                    counter += 1
+                print("Processing image ids:")
+                print(image_ids)
 
-                    if counter * batch_size > LIMIT:
-                        print("processed {} images. stopping".format(counter * batch_size))
-                        break
-                else:
-                    # we don't have a full batch any more
-                    # TODO: fill with placeholders
+                generated = sess.run(output_tensor, feed_dict={
+                    input_tensor: batch_eyes
+                })
+                save_images(generated, output_folder, image_ids)
+                print("Saved {} images".format(len(image_ids)))
+                counter += 1
+
+                if counter * batch_size > LIMIT:
+                    print("processed {} images. stopping".format(counter * batch_size))
                     break
+
             except tf.errors.OutOfRangeError:
                 break
 
