@@ -1,9 +1,7 @@
 """Translate an image to another image
 An example of command-line usage is:
-python export_graph.py --model pretrained/apple2orange.pb \
-                       --input input_sample.jpg \
-                       --output output_sample.jpg \
-                       --image_size 256
+python export_graph.py --input ../data/UnityEyesTest/
+        --model ../checkpoints/20181123-1412/Unity2MPII.pb
 """
 import os
 import tensorflow as tf
@@ -15,7 +13,6 @@ FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_string('model', '', 'model path (.pb)')
 tf.flags.DEFINE_string('input', '', 'input path (folder containing images)')
-tf.flags.DEFINE_string('output', '', 'output folder')
 
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
@@ -57,11 +54,6 @@ def inference():
     graph = tf.Graph()
 
     with graph.as_default():
-        # filenames = tf.constant(all_images_paths)
-        #
-        # dataset = tf.data.Dataset.from_tensor_slices(filenames)
-        # dataset = dataset.map(_parse_function).batch(batch_size)
-        # iterator = dataset.make_one_shot_iterator()
 
         with tf.gfile.FastGFile(FLAGS.model, 'rb') as model_file:
             graph_def = tf.GraphDef()
@@ -69,10 +61,9 @@ def inference():
 
             tf.import_graph_def(graph_def, name='output')
 
-            # for op in tf.get_default_graph().get_operations():
-            #     print(str(op.name))
-
+            print("All nodes in graph: ")
             print([n.name for n in tf.get_default_graph().as_graph_def().node])
+
             input_tensor = graph.get_tensor_by_name('output/input_image:0')
             output_tensor = graph.get_tensor_by_name('output/output_image:0')
 
