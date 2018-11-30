@@ -109,3 +109,5 @@ test_*
 
 config
 
+checkpoints_*
+data
