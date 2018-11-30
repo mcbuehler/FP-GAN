@@ -1,6 +1,7 @@
 import tensorflow as tf
 import util.utils as utils
 
+
 def get_index_channels(data_format):
     # not used yet
     if data_format == "NHWC":
@@ -195,79 +196,20 @@ def last_conv(input, reuse=False, use_sigmoid=False, name=None):
 
 ### Eye gaze estimation network layers
 def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
-            norm='instance', summary=False):
+            norm='instance'):
     """
-    Convoluational layer
+    Convolutional layer
     """
     # Stride? Activation function? normalisation? skip connections?
     with tf.variable_scope(name, reuse=reuse):
-        weights = _weights("weights",
+        weights = _weights_xavier("weights",
                            shape=[3, 3, input.get_shape()[3], k])
 
         conv = tf.nn.conv2d(input, weights,
                             strides=[1, stride, stride, 1], padding='SAME')
 
         normalized = _norm(conv, is_training, norm)
-        output = tf.nn.relu(normalized)
-
-    def conv(name, l, channel, stride):
-        return tf.layers.conv2d(l, filters=channel, kernel_size=3,
-                                strides=stride,
-                                padding='same', name=name,
-                                data_format=data_format)
-
-    def add_layer(name, l):
-        """
-        Adds BN, ReLU and Conv layer
-        :param name: will be used as variable scope
-        :param l: input tensor
-        :return:
-        """
-        with tf.variable_scope(name):
-            c = tf.layers.batch_normalization(l, name='bn1',
-                                              training=is_training)
-            c = tf.nn.relu(c)
-            c = conv('conv1', c, self.growth_rate, 1)
-            l = tf.concat([c, l], 3)
-        return l
-
-    def add_transition(name, l):
-        """
-        Adds a transition layer. Consists of BN, ReLU, Conv, ReLU, AvgPooling
-        :param name: variable scope
-        :param l: input tensor
-        :return:
-        """
-        shape = l.get_shape().as_list()
-        in_channel = shape[3]
-        with tf.variable_scope(name):
-            l = tf.layers.batch_normalization(l, name='bn1',
-                                              training=is_training)
-            l = tf.nn.relu(l)
-            l = tf.layers.conv2d(l, filters=in_channel, strides=1,
-                                 kernel_size=1, padding='same',
-                                 data_format=data_format, name='conv1')
-            l = tf.nn.relu(l)
-            layer = tf.layers.AveragePooling2D(name='pool', padding='same',
-                                               strides=2,
-                                               pool_size=2,
-                                               data_format=data_format)
-            l = layer.apply(l, scope=tf.get_variable_scope())
-        return l
-
-    def global_average_pooling(x, data_format='channels_last', name=None):
-        """
-        Global average pooling as in the paper `Network In Network
-        <http://arxiv.org/abs/1312.4400>`_.
-        Args:
-            x (tf.Tensor): a 4D tensor.
-        Returns:
-            tf.Tensor: a NC tensor named ``output``.
-        """
-        assert x.shape.ndims == 4
-        axis = [1, 2] if data_format == 'channels_last' else [2, 3]
-        return tf.reduce_mean(x, axis, name=name)
-
+        output = tf.nn.leaky_relu(normalized)
     return output
 
 
@@ -282,7 +224,8 @@ def maxpool(input, k, name, stride=2, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         ksize = [1, k, k, 1]
         strides = [1, stride, stride, 1]
-        pooled = tf.nn.max_pool(input, ksize, strides=strides, name=name, padding='SAME')
+        pooled = tf.nn.max_pool(input, ksize, strides=strides, name=name,
+                                padding='SAME')
     return pooled
 
 
@@ -312,10 +255,22 @@ def last_dense(input, reuse=False, use_sigmoid=False, name=None):
 
         if use_sigmoid:
             output = tf.sigmoid(output)
-        return output
+    return output
 
 
 ### Helpers
+def _weights_xavier(name, shape):
+    var = tf.get_variable(
+        name, shape,
+        initializer=tf.contrib.layers.xavier_initializer(
+            uniform=True,
+            seed=None,
+            dtype=tf.float32
+        )
+    )
+    return var
+
+
 def _weights(name, shape, mean=0.0, stddev=0.02):
     """ Helper to create an initialized Variable
     Args:

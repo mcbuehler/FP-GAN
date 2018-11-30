@@ -1,9 +1,7 @@
 import tensorflow as tf
 
 import util.ops as ops
-import util.gaze as gaze
-import util.utils as utils
-from base_gazenet import BaseGazeNet
+from models.base_gazenet import BaseGazeNet
 
 """
 Original architecture:
@@ -38,11 +36,10 @@ class GazeNet(BaseGazeNet):
 
         self.is_training = tf.placeholder_with_default(is_training, shape=[],
                                                        name='is_training')
-
         with tf.variable_scope(self.name, reuse=self.reuse):
             # convolution layers
             c32_1 = ops.conv3x3(input, k=32, stride=2, reuse=self.reuse, norm=None,
-                                is_training=self.is_training, name="c32_1", summary=True)
+                                is_training=self.is_training, name="c32_1")
             c32_2 = ops.conv3x3(c32_1, k=32, reuse=self.reuse, norm=self.norm,
                                 is_training=self.is_training, name="c32_2")
             c64 = ops.conv3x3(c32_2, k=64, reuse=self.reuse, norm=self.norm,

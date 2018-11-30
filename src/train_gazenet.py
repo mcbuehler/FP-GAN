@@ -12,7 +12,7 @@ FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_integer('batch_size', 32, 'batch size, default: 512')
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
-tf.flags.DEFINE_string('norm', 'instance',
+tf.flags.DEFINE_string('norm', 'batch',
                        '[instance, batch] use instance norm or batch norm, default: instance')
 
 tf.flags.DEFINE_float('learning_rate', 0.001,
