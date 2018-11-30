@@ -4,7 +4,7 @@ import os
 import tensorflow as tf
 from datetime import datetime
 
-from models.gazenet import GazeNet
+from models.densegazenet import DenseGazeNet
 from datasources.unityeyes import UnityEyes
 
 FLAGS = tf.flags.FLAGS
@@ -63,10 +63,8 @@ def perform_validation_step(sess, loss_validation, summary_op, step, train_write
     train_writer.add_summary(summary, step)
     train_writer.flush()
 
-# TODO:
-# - constant LR 0.001
 def train():
-    checkpoint_dir_name = "checkpoints_gazenet"
+    checkpoint_dir_name = "checkpoints_densegazenet"
     if FLAGS.load_model is not None:
         checkpoints_dir = "../"+checkpoint_dir_name+"/" + FLAGS.load_model.lstrip(
             checkpoint_dir_name+"/")
@@ -85,7 +83,7 @@ def train():
 
     with tf.Session(graph=graph) as sess:
         with graph.as_default():
-            gazenet = GazeNet(
+            gazenet = DenseGazeNet(
                 batch_size=FLAGS.batch_size,
                 image_size=image_size,
                 norm=FLAGS.norm,
@@ -93,7 +91,7 @@ def train():
                 beta1=FLAGS.beta1,
                 beta2=FLAGS.beta2,
                 tf_session=sess,
-                name="gazenet"
+                name="densegazenet"
             )
 
             # Prepare training
