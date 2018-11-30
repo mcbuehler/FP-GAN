@@ -9,7 +9,7 @@ from datasources.unityeyes import UnityEyes
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 64, 'batch size, default: 512')
+tf.flags.DEFINE_integer('batch_size', 32, 'batch size, default: 512')
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_string('norm', 'instance',
@@ -17,7 +17,9 @@ tf.flags.DEFINE_string('norm', 'instance',
 
 tf.flags.DEFINE_float('learning_rate', 0.001,
                       'initial learning rate for Adam, default: 0.0002')
-tf.flags.DEFINE_float('beta1', 0.5,
+tf.flags.DEFINE_float('beta1', 0.9,
+                      'momentum term of Adam, default: 0.5')
+tf.flags.DEFINE_float('beta2', 0.999,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_string('path_train', '../data/UnityEyesTrain',
                        'folder containing UnityEyes')
@@ -89,6 +91,7 @@ def train():
                 norm=FLAGS.norm,
                 learning_rate=FLAGS.learning_rate,
                 beta1=FLAGS.beta1,
+                beta2=FLAGS.beta2,
                 tf_session=sess,
                 name="gazenet",
                 is_training=True
@@ -138,10 +141,11 @@ def train():
                 n_info_steps = 100
                 if step % n_info_steps == 0:
                     # coord.
-                    logging.info('-----------Step %d:-------------' % step)
-                    logging.info('  Time: {}'.format(
-                        datetime.now().strftime('%b-%d-%I%M%p-%G')))
-                    logging.info('  loss   : {}'.format(loss_value))
+                    logging.info('Step {} -->  Time: {}    loss:  {}'.format(
+                        step,
+                        datetime.now().strftime('%b-%d-%I%M%p-%G'),
+                        loss_value)
+                    )
 
                 if step % 1000 == 0:
                     perform_validation_step(sess, loss_validation, summary_op, step, train_writer)

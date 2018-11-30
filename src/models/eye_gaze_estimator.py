@@ -32,7 +32,8 @@ class GazeNet:
                  use_sigmoid=False,
                  norm='instance',
                  learning_rate=2e-4,
-                 beta1=0.5,
+                 beta1=0.9,
+                 beta2=0.999,
                  tf_session=None
                  ):
         """
@@ -64,6 +65,7 @@ class GazeNet:
         self.image_size = image_size
         self.learning_rate = learning_rate
         self.beta1 = beta1
+        self.beta2 = beta2
         self.tf_session = tf_session
 
     def forward(self, input, is_training=True):
@@ -148,7 +150,6 @@ class GazeNet:
             # end_learning_rate = 0.0
             # start_decay_step = int(n_steps / 2)
             # decay_steps = n_steps - start_decay_step
-            beta1 = self.beta1
             # learning_rate = (
             #     tf.where(
             #         tf.greater_equal(global_step, start_decay_step),
@@ -163,7 +164,7 @@ class GazeNet:
             tf.summary.scalar('learning_rate/{}'.format(name), self.learning_rate)
 
             learning_step = (
-                tf.train.AdamOptimizer(self.learning_rate, beta1=beta1, name=name)
+                tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, name=name)
                     .minimize(loss, global_step=global_step,
                               var_list=variables)
             )
