@@ -63,8 +63,7 @@ def perform_validation_step(sess, loss_validation, summary_op, step, train_write
     train_writer.add_summary(summary, step)
     train_writer.flush()
 
-# TODO:
-# - constant LR 0.001
+
 def train():
     checkpoint_dir_name = "checkpoints_gazenet"
     if FLAGS.load_model is not None:

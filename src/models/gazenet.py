@@ -58,10 +58,9 @@ class GazeNet(BaseGazeNet):
                                reuse=self.reuse)
             fc1000 = ops.dense(fc9600, d=1000, name="fc1000", reuse=self.reuse)
             out = ops.last_dense(fc1000, name="out", reuse=self.reuse, use_sigmoid=self.use_sigmoid)
-            out_normalised = tf.nn.l2_normalize(out, axis=1, name="l2_normalise")
         # What about a layer that adds a restriction on output?
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                            scope=self.name)
 
-        return out_normalised
+        return out
