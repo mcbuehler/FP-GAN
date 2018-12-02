@@ -5,7 +5,7 @@ import tensorflow as tf
 from datetime import datetime
 
 from models.gazenet import GazeNet
-from datasources.unityeyes import UnityEyes
+from input.UnityDataset import UnityDataset
 
 FLAGS = tf.flags.FLAGS
 
@@ -33,19 +33,9 @@ tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
 
-def get_image_queue(DataSource, path, is_training, sess, batch_size, image_size):
-    if is_training:
-        image_queue = DataSource(sess, batch_size, path,
-                            eye_image_shape=image_size,
-                            data_format="NHWC", shuffle=True)
-    else:
-        image_queue = DataSource(sess, batch_size, path,
-                            eye_image_shape=image_size,
-                            data_format="NHWC", shuffle=False,
-                                 testing=True)
-
-    image_queue.create_and_start_threads()
-    return image_queue
+def get_dataset_iterator(path_input, image_size, batch_size, shuffle):
+    dataset = UnityDataset(path_input, image_size, batch_size, shuffle)
+    return dataset.get_iterator()
 
 
 def perform_validation_step(sess, loss_validation, summary_op, step, train_writer):
@@ -96,14 +86,22 @@ def train():
             )
 
             # Prepare training
-            image_queue_train = get_image_queue(UnityEyes, FLAGS.path_train, is_training=True, sess=sess, batch_size=FLAGS.batch_size, image_size=image_size)
-            gaze_dict_train, loss_train = gazenet.get_loss(image_queue_train.output_tensors)
+            image_queue_train = get_dataset_iterator(
+                FLAGS.path_train,
+                batch_size=FLAGS.batch_size,
+                image_size=image_size,
+                shuffle=True)
+            gaze_dict_train, loss_train = gazenet.get_loss(image_queue_train)
             optimizers = gazenet.optimize(loss_train, n_steps=FLAGS.n_steps)
 
             # Prepare validation
-            image_queue_validation = get_image_queue(UnityEyes, FLAGS.path_train, is_training=False, sess=sess, batch_size=FLAGS.batch_size, image_size=image_size)
+            image_queue_validation = get_dataset_iterator(
+                FLAGS.path_validation,
+                batch_size=FLAGS.batch_size,
+                image_size=image_size,
+                shuffle=False)
             gaze_dict_validation, loss_validation = gazenet.get_loss(
-                image_queue_validation.output_tensors, is_training=False)
+                image_queue_validation, is_training=False)
 
             # Summaries and saver
             summary_op = tf.summary.merge_all()
@@ -121,7 +119,7 @@ def train():
             step = 0
 
         coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+        # threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         try:
             while step < FLAGS.n_steps and not coord.should_stop():
@@ -165,7 +163,7 @@ def train():
             logging.info("Model saved in file: %s" % save_path)
             # When done, ask the threads to stop.
             coord.request_stop()
-            coord.join(threads)
+            # coord.join(threads)
 
 
 def main(unused_argv):

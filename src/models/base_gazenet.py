@@ -75,9 +75,11 @@ class BaseGazeNet:
     def create_name(self, name, prefix):
         return "{}/{}".format(prefix, name)
 
-    def get_loss(self, input, is_training=True):
-        input_eye = input['eye']
-        input_gaze = input['gaze']
+    def get_loss(self, iterator, is_training=True):
+        input_batch = iterator.get_next()
+
+        input_eye = input_batch['eye']
+        input_gaze = input_batch['gaze']
         output = self.forward(input_eye, is_training=is_training)
 
         loss_mse = tf.reduce_mean(tf.squared_difference(output, input_gaze))
@@ -86,6 +88,8 @@ class BaseGazeNet:
 
         # # summary
         summary_pref = "train" if is_training else "test"
+
+        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
 
         tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye)
         tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze)

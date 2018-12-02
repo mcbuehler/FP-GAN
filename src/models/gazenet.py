@@ -24,7 +24,6 @@ batch_size=512
 
 
 class GazeNet(BaseGazeNet):
-
     def forward(self, input, is_training=True):
         """
         Args:
@@ -33,7 +32,6 @@ class GazeNet(BaseGazeNet):
           output: 4D tensor batch_size x out_size x out_size x 1 (default 1x5x5x1)
                   filled with 0.9 if real, 0.0 if fake
         """
-
         self.is_training = tf.placeholder_with_default(is_training, shape=[],
                                                        name='is_training')
         with tf.variable_scope(self.name, reuse=self.reuse):
@@ -62,5 +60,4 @@ class GazeNet(BaseGazeNet):
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
                                            scope=self.name)
-
         return out
