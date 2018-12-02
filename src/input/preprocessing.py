@@ -1,29 +1,13 @@
-"""UnityEyes data source for gaze estimation."""
-import os
-import ujson
-from threading import Lock
-
-import cv2 as cv
 import numpy as np
+import cv2 as cv
 import tensorflow as tf
 
-import util.heatmap as heatmap
 
-from datasources.data_source import BaseDataSource
-
-
-class UnityEyes(BaseDataSource):
-    """UnityEyes data loading class."""
-
+class ImagePreprocessor:
     def __init__(self,
-                 tensorflow_session: tf.Session,
-                 batch_size: int,
-                 unityeyes_path: str,
                  testing=False,
-                 generate_heatmaps=False,
-                 eye_image_shape=(36, 60),
-                 heatmaps_scale=1.0,
-                 **kwargs):
+                 eye_image_shape=(36, 60)):
+
         """Create queues and threads to read and preprocess data."""
         self._short_name = 'UnityEyes'
         if testing:
@@ -31,16 +15,6 @@ class UnityEyes(BaseDataSource):
 
         # Cache some parameters
         self._eye_image_shape = eye_image_shape
-        self._heatmaps_scale = heatmaps_scale
-
-        # Create global index over all specified keys
-        self._images_path = unityeyes_path
-        self._file_stems = sorted([p[:-5] for p in os.listdir(unityeyes_path)
-                                   if p.endswith('.json')])
-        self._num_entries = len(self._file_stems)
-
-        self._mutex = Lock()
-        self._current_index = 0
 
         # Define bounds for noise values for different augmentation types
         self._difficulty = 0.0
@@ -54,91 +28,19 @@ class UnityEyes(BaseDataSource):
             'num_line': (0.0, 2.0),
             'heatmap_sigma': (5.0, 2.5),
         }
-        self._generate_heatmaps = generate_heatmaps
 
-        # Call parent class constructor
-        super().__init__(tensorflow_session, batch_size=batch_size, testing=testing, **kwargs)
-
-    @property
-    def num_entries(self):
-        """Number of entries in this data source."""
-        return self._num_entries
-
-    @property
-    def short_name(self):
-        """Short name specifying source UnityEyes."""
-        return self._short_name
-
-    def reset(self):
-        """Reset index."""
-        with self._mutex:
-            super().reset()
-            self._current_index = 0
-
-    def entry_generator(self, yield_just_one=False):
-        """Read entry from UnityEyes."""
-        try:
-            while range(1) if yield_just_one else True:
-                with self._mutex:
-                    if self._current_index >= self.num_entries:
-                        if self.testing:
-                            break
-                        else:
-                            self._current_index = 0
-                    current_index = self._current_index
-                    self._current_index += 1
-
-                file_stem = self._file_stems[current_index]
-                jpg_path = '%s/%s.jpg' % (self._images_path, file_stem)
-                json_path = '%s/%s.json' % (self._images_path, file_stem)
-                with open(json_path, 'r') as f:
-                    json_data = ujson.load(f)
-
-                image = cv.imread(jpg_path, cv.IMREAD_COLOR)
-
-                # CV loads the image as BGR
-                # Convert image to RGB
-                image = image[..., ::-1]
-
-                entry = {
-                    'full_image': image,
-                    'json_data': json_data,
-                    'image_id': np.array(file_stem, dtype=np.str)
-                }
-                assert entry['full_image'] is not None
-                yield entry
-        finally:
-            # Execute any cleanup operations as necessary
-            pass
-
-    def set_difficulty(self, difficulty):
-        """Set difficulty of training data."""
-        assert isinstance(difficulty, float)
-        assert 0.0 <= difficulty <= 1.0
-        self._difficulty = difficulty
-
-    def set_augmentation_range(self, augmentation_type, easy_value, hard_value):
-        """Set 'range' for a known augmentation type."""
-        assert isinstance(augmentation_type, str)
-        assert augmentation_type in self._augmentation_ranges
-        assert isinstance(easy_value, float) or isinstance(easy_value, int)
-        assert isinstance(hard_value, float) or isinstance(hard_value, int)
-        self._augmentation_ranges[augmentation_type] = (easy_value, hard_value)
-
-    def preprocess_entry(self, entry):
+    def preprocess(self, full_image, json_data):
         """Use annotations to segment eyes and calculate gaze direction."""
-        full_image = entry['full_image']
-        json_data = entry['json_data']
-        del entry['full_image']
-        del entry['json_data']
+        result_dict = dict()
 
-        ih, iw = full_image.shape[:2]  # image might have 2 or 3 channels
-        iw_2, ih_2 = 0.5 * iw, 0.5 * ih
+        ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
+        iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
         oh, ow = self._eye_image_shape
 
         def process_coords(coords_list):
             coords = [eval(l) for l in coords_list]
-            return np.array([(x, ih-y, z) for (x, y, z) in coords])
+            return np.array([(x, ih - y, z) for (x, y, z) in coords])
+
         interior_landmarks = process_coords(json_data['interior_margin_2d'])
         caruncle_landmarks = process_coords(json_data['caruncle_2d'])
         iris_landmarks = process_coords(json_data['iris_2d'])
@@ -158,7 +60,7 @@ class UnityEyes(BaseDataSource):
             # Get normal distributed random value
             if len(random_multipliers) == 0:
                 random_multipliers.extend(
-                        list(np.random.normal(size=(len(self._augmentation_ranges),))))
+                    list(np.random.normal(size=(len(self._augmentation_ranges),))))
             return random_multipliers.pop() * value_from_type(augmentation_type)
 
         # Only select almost frontal images
@@ -170,7 +72,8 @@ class UnityEyes(BaseDataSource):
         #     return None
         h_pitch = -h_pitch
         h_yaw = -h_yaw
-        entry['head'] = np.asarray([np.radians(h_pitch), np.radians(h_yaw)], dtype=np.float32)
+        result_dict['head'] = np.asarray([np.radians(h_pitch), np.radians(h_yaw)],
+                                   dtype=np.float32)
 
         # Prepare to segment eye image
         left_corner = np.mean(caruncle_landmarks[:, :2], axis=0)
@@ -201,13 +104,15 @@ class UnityEyes(BaseDataSource):
         scale_inv = 1. / scale
         np.fill_diagonal(scale_mat, ow / eye_width * scale)
         original_eyeball_radius = 71.7593
-        eyeball_radius = original_eyeball_radius * scale_mat[0, 0]  # See: https://goo.gl/ZnXgDE
-        entry['radius'] = np.float32(eyeball_radius)
+        eyeball_radius = original_eyeball_radius * scale_mat[
+            0, 0]  # See: https://goo.gl/ZnXgDE
+        result_dict['radius'] = np.float32(eyeball_radius)
 
         # Re-centre eye image such that eye fits (based on determined `eye_middle`)
         recentre_mat = np.asmatrix(np.eye(3))
-        recentre_mat[0, 2] = iw/2 - eye_middle[0] + 0.5 * eye_width * scale_inv
-        recentre_mat[1, 2] = ih/2 - eye_middle[1] + 0.5 * oh / ow * eye_width * scale_inv
+        recentre_mat[0, 2] = iw / 2 - eye_middle[0] + 0.5 * eye_width * scale_inv
+        recentre_mat[1, 2] = ih / 2 - eye_middle[
+            1] + 0.5 * oh / ow * eye_width * scale_inv
         recentre_mat[0, 2] += noisy_value_from_type('translation')  # x
         recentre_mat[1, 2] += noisy_value_from_type('translation')  # y
 
@@ -222,10 +127,7 @@ class UnityEyes(BaseDataSource):
         clean_eye *= 2.0 / 255.0
         clean_eye -= 1.0
 
-        if self.data_format == "NCHW":
-            # channel first
-            clean_eye = tf.transpose(clean_eye, [2, 0, 1])
-        entry['clean_eye'] = clean_eye
+        result_dict['clean_eye'] = clean_eye
 
         # Convert look vector to gaze direction in polar angles
         look_vec = np.array(eval(json_data['eye_details']['look_vec']))[:3]
@@ -240,7 +142,7 @@ class UnityEyes(BaseDataSource):
             gaze[1] = np.pi - gaze[1]
         elif gaze[1] < 0.0:
             gaze[1] = -(np.pi + gaze[1])
-        entry['gaze'] = gaze.astype(np.float32)
+        result_dict['gaze'] = gaze.astype(np.float32)
         # if gaze[0] > np.radians(5.0) or gaze[0] < np.radians(-25.0) or \
         #         np.abs(gaze[1]) > np.radians(25.0):
         #     return None
@@ -263,7 +165,8 @@ class UnityEyes(BaseDataSource):
                 line_colour = int(255 * line_rand_nums[j + 3])
                 eye = cv.line(eye, (lx0, ly0), (lx1, ly1),
                               color=(line_colour, line_colour, line_colour),
-                              thickness=int(6*line_rand_nums[j + 4]), lineType=cv.LINE_AA)
+                              thickness=int(6 * line_rand_nums[j + 4]),
+                              lineType=cv.LINE_AA)
 
         # Rescale image if required
         rescale_max = value_from_type('rescale')
@@ -295,15 +198,12 @@ class UnityEyes(BaseDataSource):
         eye *= 2.0 / 255.0
         eye -= 1.0
 
-        if self.data_format == "NCHW":
-            # channel first
-            eye = tf.transpose(clean_eye, [2, 0, 1])
-
-        entry['eye'] = eye
+        result_dict['eye'] = eye
 
         # Select and transform landmark coordinates
         iris_centre = np.asarray([
-            iw_2 + original_eyeball_radius * -np.cos(original_gaze[0]) * np.sin(original_gaze[1]),
+            iw_2 + original_eyeball_radius * -np.cos(original_gaze[0]) * np.sin(
+                original_gaze[1]),
             ih_2 + original_eyeball_radius * -np.sin(original_gaze[0]),
         ])
         landmarks = np.concatenate([interior_landmarks[::2, :2],  # 8
@@ -315,20 +215,14 @@ class UnityEyes(BaseDataSource):
                                        constant_values=1))
         landmarks = np.asarray(landmarks * transform_mat.T)
         landmarks = landmarks[:, :2]  # We only need x, y
-        entry['landmarks'] = landmarks.astype(np.float32)
+        result_dict['landmarks'] = landmarks.astype(np.float32)
 
-        # Generate heatmaps if necessary
-        if self._generate_heatmaps:
-            # Should be half-scale (compared to eye image)
-            entry['heatmaps'] = np.asarray([
-                heatmap.gaussian_2d(
-                    shape=(self._heatmaps_scale*oh, self._heatmaps_scale*ow),
-                    centre=self._heatmaps_scale*landmark,
-                    sigma=value_from_type('heatmap_sigma'),
-                )
-                for landmark in entry['landmarks']
-            ]).astype(np.float32)
-            if self.data_format == 'NHWC':
-                np.transpose(entry['heatmaps'], (1, 2, 0))
+        return_keys = ['clean_eye', 'eye', 'gaze']
+        return [result_dict[k] for k in return_keys]
 
-        return entry
+    @staticmethod
+    def equalize(image):  # Proper colour image intensity equalization
+        ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
+        ycrcb[:, :, 0] = cv.equalizeHist(ycrcb[:, :, 0])
+        output = cv.cvtColor(ycrcb, cv.COLOR_YCrCb2RGB)
+        return output

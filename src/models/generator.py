@@ -54,6 +54,6 @@ class Generator:
     return output
 
   def sample(self, input):
-    image = utils.batch_convert2int(self.__call__(input))
-    image = tf.image.encode_jpeg(tf.squeeze(image, [0]))
-    return image
+    images = utils.batch_convert2int(self.__call__(input))
+    images_jpeg = tf.map_fn(lambda img: tf.image.encode_jpeg(img), images, dtype=tf.string)
+    return images_jpeg

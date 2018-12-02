@@ -75,20 +75,26 @@ class CycleGAN:
         self.fake_y = tf.placeholder(tf.float32,
                                      shape=[batch_size, image_size[0],
                                             image_size[1], 3])
+        if self.X_train_file != '' and self.Y_train_file != '':
+            # Only initialise data sources if we are not doing inference
+            self.X_reader = UnityReader(self.X_train_file, name='X',
+                                        image_size=self.image_size,
+                                        batch_size=self.batch_size,
+                                        tf_session=self.tf_session)
 
-        self.X_reader = UnityReader(self.X_train_file, name='X',
-                                    image_size=self.image_size,
-                                    batch_size=self.batch_size,
-                                    tf_session=self.tf_session)
+            self.Y_reader = MPIIGazeReader(self.Y_train_file, name='Y',
+                                           image_size=self.image_size,
+                                           batch_size=self.batch_size,
+                                           tf_session=self.tf_session)
 
-        self.Y_reader = MPIIGazeReader(self.Y_train_file, name='Y',
-                                       image_size=self.image_size,
-                                       batch_size=self.batch_size,
-                                       tf_session=self.tf_session)
-
-    def model(self):
-        x = self.X_reader.feed()
-        y = self.Y_reader.feed()
+    def model(self, fake_input=False):
+        if fake_input:
+            shape = [self.batch_size, *self.image_size, 3]
+            x = tf.placeholder(tf.float32, shape)
+            y = tf.placeholder(tf.float32, shape)
+        else:
+            x = self.X_reader.feed()
+            y = self.Y_reader.feed()
 
         # why don't we feed G(x) / F(y) here?
         cycle_loss = self.cycle_consistency_loss(self.G, self.F, x, y)
