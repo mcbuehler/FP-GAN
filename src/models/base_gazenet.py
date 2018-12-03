@@ -125,9 +125,12 @@ class BaseGazeNet:
             #     )
             #
             # )
-            tf.summary.scalar('learning_rate/{}'.format(name), self.learning_rate)
+            # tf.summary.scalar('learning_rate/{}'.format(name), self.learning_rate)
 
             learning_step = (
+                # tf.train.GradientDescentOptimizer(self.learning_rate).minimize(loss,
+                #                                                                global_step,
+                #                                                                variables)
                 tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, name=name)
                     .minimize(loss, global_step=global_step,
                               var_list=variables)

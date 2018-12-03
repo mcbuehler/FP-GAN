@@ -196,7 +196,7 @@ def last_conv(input, reuse=False, use_sigmoid=False, name=None):
 
 ### Eye gaze estimation network layers
 def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
-            norm='instance'):
+            norm='instance', create_summaries=False):
     """
     Convolutional layer
     """
@@ -204,6 +204,9 @@ def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
     with tf.variable_scope(name, reuse=reuse):
         weights = _weights_xavier("weights",
                            shape=[3, 3, input.get_shape()[3], k])
+
+        if create_summaries:
+            tf.summary.histogram("weights", weights)
 
         conv = tf.nn.conv2d(input, weights,
                             strides=[1, stride, stride, 1], padding='SAME')
@@ -229,16 +232,21 @@ def maxpool(input, k, name, stride=2, reuse=False):
     return pooled
 
 
-def dense(input, d, name, reuse=False):
+def dense(input, d, name, reuse=False, create_summaries=True):
     with tf.variable_scope(name, reuse=reuse):
         w = _weights("weights", shape=[input.shape[1], d])
         b = _biases("offset", shape=[1])
         z = tf.add(tf.matmul(input, w), b)
         a = tf.nn.relu(z)
+
+        if create_summaries:
+            tf.summary.histogram("weights", w)
+            tf.summary.histogram("z", z)
+
     return a
 
 
-def last_dense(input, reuse=False, use_sigmoid=False, name=None):
+def last_dense(input, reuse=False, use_sigmoid=False, name=None, create_summaries=True):
     """ Last dense layer of eye gaze network
     Args:
       input: 4D tensor
@@ -252,6 +260,9 @@ def last_dense(input, reuse=False, use_sigmoid=False, name=None):
         biases = _biases("biases", [1])
 
         output = tf.add(tf.matmul(input, weights), biases)
+
+        if create_summaries:
+            tf.summary.histogram("weights", weights)
 
         if use_sigmoid:
             output = tf.sigmoid(output)
