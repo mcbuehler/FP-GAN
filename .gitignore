@@ -89,10 +89,11 @@ ENV/
 .ropeproject
 
 # data
-data/
+data
 
 # checkpoints
 checkpoints/
+outputs/
 
 # model
 pretrained
@@ -105,3 +106,8 @@ scripts
 
 # test python files
 test_*
+
+config
+
+checkpoints_*
+*.jpg
