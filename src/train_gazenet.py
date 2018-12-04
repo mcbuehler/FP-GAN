@@ -38,6 +38,7 @@ tf.flags.DEFINE_integer('n_steps', 100000,
 tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
+
 def get_loss(path, image_size, gazenet, mode):
     datasets = {
         Mode.TRAIN: UnityDataset,
@@ -47,8 +48,9 @@ def get_loss(path, image_size, gazenet, mode):
     # Prepare validation
     dataset = datasets[mode]
     iterator = dataset(path, image_size, FLAGS.batch_size, shuffle=True).get_iterator()
+    is_training = mode == Mode.TRAIN
     gaze_dict_validation, loss_validation = gazenet.get_loss(
-        iterator, is_training=False, mode=mode)
+        iterator, is_training=is_training, mode=mode)
     return loss_validation
 
 

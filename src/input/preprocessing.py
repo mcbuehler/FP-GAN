@@ -1,6 +1,10 @@
 import numpy as np
 import cv2 as cv
 import tensorflow as tf
+from util.log import get_logger
+
+logger = get_logger()
+
 
 class Preprocessor:
 
@@ -19,6 +23,7 @@ class UnityPreprocessor(Preprocessor):
 
         """Create queues and threads to read and preprocess data."""
         self._short_name = 'UnityEyes'
+        self.do_augmentation = not testing
         if testing:
             self._short_name += ':test'
 
@@ -38,6 +43,57 @@ class UnityPreprocessor(Preprocessor):
             'heatmap_sigma': (5.0, 2.5),
         }
 
+    def augment(self, eye):
+        oh, ow = self._eye_image_shape
+
+        # Draw line randomly
+        num_line_noise = int(np.round(self._noisy_value_from_type('num_line')))
+        if num_line_noise > 0:
+            line_rand_nums = np.random.rand(5 * num_line_noise)
+            for i in range(num_line_noise):
+                j = 5 * i
+                lx0, ly0 = int(ow * line_rand_nums[j]), oh
+                lx1, ly1 = ow, int(oh * line_rand_nums[j + 1])
+                direction = line_rand_nums[j + 2]
+                if direction < 0.25:
+                    lx1 = ly0 = 0
+                elif direction < 0.5:
+                    lx1 = 0
+                elif direction < 0.75:
+                    ly0 = 0
+                line_colour = int(255 * line_rand_nums[j + 3])
+                eye = cv.line(eye, (lx0, ly0), (lx1, ly1),
+                              color=(line_colour, line_colour, line_colour),
+                              thickness=int(6 * line_rand_nums[j + 4]),
+                              lineType=cv.LINE_AA)
+
+        # Rescale image if required
+        rescale_max = self._value_from_type('rescale')
+        if rescale_max < 1.0:
+            rescale_noise = np.random.uniform(low=rescale_max, high=1.0)
+            interpolation = cv.INTER_CUBIC
+            eye = cv.resize(eye, dsize=(0, 0), fx=rescale_noise,
+                            fy=rescale_noise,
+                            interpolation=interpolation)
+            eye = cv.equalizeHist(eye)
+            eye = cv.resize(eye, dsize=(ow, oh), interpolation=interpolation)
+
+        # Add rgb noise to eye image
+        intensity_noise = int(self._value_from_type('intensity'))
+        if intensity_noise > 0:
+            eye = eye.astype(np.int16)
+            eye += np.random.randint(low=-intensity_noise,
+                                     high=intensity_noise,
+                                     size=eye.shape, dtype=np.int16)
+            cv.normalize(eye, eye, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
+            eye = eye.astype(np.uint8)
+
+        # Add blur to eye image
+        blur_noise = self._noisy_value_from_type('blur')
+        if blur_noise > 0:
+            eye = cv.GaussianBlur(eye, (7, 7), 0.5 + np.abs(blur_noise))
+        return eye
+
     def preprocess(self, full_image, json_data):
         """Use annotations to segment eyes and calculate gaze direction."""
         result_dict = dict()
@@ -53,24 +109,6 @@ class UnityPreprocessor(Preprocessor):
         interior_landmarks = process_coords(json_data['interior_margin_2d'])
         caruncle_landmarks = process_coords(json_data['caruncle_2d'])
         iris_landmarks = process_coords(json_data['iris_2d'])
-
-        random_multipliers = []
-
-        def value_from_type(augmentation_type):
-            # Scale to be in range
-            easy_value, hard_value = self._augmentation_ranges[augmentation_type]
-            value = (hard_value - easy_value) * self._difficulty + easy_value
-            value = (np.clip(value, easy_value, hard_value)
-                     if easy_value < hard_value
-                     else np.clip(value, hard_value, easy_value))
-            return value
-
-        def noisy_value_from_type(augmentation_type):
-            # Get normal distributed random value
-            if len(random_multipliers) == 0:
-                random_multipliers.extend(
-                    list(np.random.normal(size=(len(self._augmentation_ranges),))))
-            return random_multipliers.pop() * value_from_type(augmentation_type)
 
         # Only select almost frontal images
         h_pitch, h_yaw, _ = eval(json_data['head_pose'])
@@ -97,7 +135,7 @@ class UnityPreprocessor(Preprocessor):
 
         # Rotate eye image if requested
         rotate_mat = np.asmatrix(np.eye(3))
-        rotation_noise = noisy_value_from_type('rotation')
+        rotation_noise = self._noisy_value_from_type('rotation')
         if rotation_noise > 0:
             rotate_angle = np.radians(rotation_noise)
             cos_rotate = np.cos(rotate_angle)
@@ -109,7 +147,7 @@ class UnityPreprocessor(Preprocessor):
 
         # Scale image to fit output dimensions (with a little bit of noise)
         scale_mat = np.asmatrix(np.eye(3))
-        scale = 1. + noisy_value_from_type('scale')
+        scale = 1. + self._noisy_value_from_type('scale')
         scale_inv = 1. / scale
         np.fill_diagonal(scale_mat, ow / eye_width * scale)
         original_eyeball_radius = 71.7593
@@ -122,8 +160,8 @@ class UnityPreprocessor(Preprocessor):
         recentre_mat[0, 2] = iw / 2 - eye_middle[0] + 0.5 * eye_width * scale_inv
         recentre_mat[1, 2] = ih / 2 - eye_middle[
             1] + 0.5 * oh / ow * eye_width * scale_inv
-        recentre_mat[0, 2] += noisy_value_from_type('translation')  # x
-        recentre_mat[1, 2] += noisy_value_from_type('translation')  # y
+        recentre_mat[0, 2] += self._noisy_value_from_type('translation')  # x
+        recentre_mat[1, 2] += self._noisy_value_from_type('translation')  # y
 
         # Apply transforms
         transform_mat = recentre_mat * scale_mat * rotate_mat * translate_mat
@@ -152,54 +190,10 @@ class UnityPreprocessor(Preprocessor):
         elif gaze[1] < 0.0:
             gaze[1] = -(np.pi + gaze[1])
         result_dict['gaze'] = gaze.astype(np.float32)
-        # if gaze[0] > np.radians(5.0) or gaze[0] < np.radians(-25.0) or \
-        #         np.abs(gaze[1]) > np.radians(25.0):
-        #     return None
 
-        # Draw line randomly
-        num_line_noise = int(np.round(noisy_value_from_type('num_line')))
-        if num_line_noise > 0:
-            line_rand_nums = np.random.rand(5 * num_line_noise)
-            for i in range(num_line_noise):
-                j = 5 * i
-                lx0, ly0 = int(ow * line_rand_nums[j]), oh
-                lx1, ly1 = ow, int(oh * line_rand_nums[j + 1])
-                direction = line_rand_nums[j + 2]
-                if direction < 0.25:
-                    lx1 = ly0 = 0
-                elif direction < 0.5:
-                    lx1 = 0
-                elif direction < 0.75:
-                    ly0 = 0
-                line_colour = int(255 * line_rand_nums[j + 3])
-                eye = cv.line(eye, (lx0, ly0), (lx1, ly1),
-                              color=(line_colour, line_colour, line_colour),
-                              thickness=int(6 * line_rand_nums[j + 4]),
-                              lineType=cv.LINE_AA)
-
-        # Rescale image if required
-        rescale_max = value_from_type('rescale')
-        if rescale_max < 1.0:
-            rescale_noise = np.random.uniform(low=rescale_max, high=1.0)
-            interpolation = cv.INTER_CUBIC
-            eye = cv.resize(eye, dsize=(0, 0), fx=rescale_noise, fy=rescale_noise,
-                            interpolation=interpolation)
-            eye = cv.equalizeHist(eye)
-            eye = cv.resize(eye, dsize=(ow, oh), interpolation=interpolation)
-
-        # Add rgb noise to eye image
-        intensity_noise = int(value_from_type('intensity'))
-        if intensity_noise > 0:
-            eye = eye.astype(np.int16)
-            eye += np.random.randint(low=-intensity_noise, high=intensity_noise,
-                                     size=eye.shape, dtype=np.int16)
-            cv.normalize(eye, eye, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
-            eye = eye.astype(np.uint8)
-
-        # Add blur to eye image
-        blur_noise = noisy_value_from_type('blur')
-        if blur_noise > 0:
-            eye = cv.GaussianBlur(eye, (7, 7), 0.5 + np.abs(blur_noise))
+        # Start augmentation
+        if self.do_augmentation:
+            eye = self.augment(eye)
 
         # Histogram equalization and preprocessing for NN
         eye = self.equalize(eye)
@@ -228,6 +222,23 @@ class UnityPreprocessor(Preprocessor):
 
         return_keys = ['clean_eye', 'eye', 'gaze']
         return [result_dict[k] for k in return_keys]
+
+    def _value_from_type(self, augmentation_type):
+        # Scale to be in range
+        easy_value, hard_value = self._augmentation_ranges[augmentation_type]
+        value = (hard_value - easy_value) * self._difficulty + easy_value
+        value = (np.clip(value, easy_value, hard_value)
+                 if easy_value < hard_value
+                 else np.clip(value, hard_value, easy_value))
+        return value
+
+    def _noisy_value_from_type(self, augmentation_type):
+        random_multipliers = []
+        # Get normal distributed random value
+        if len(random_multipliers) == 0:
+            random_multipliers.extend(
+                list(np.random.normal(size=(len(self._augmentation_ranges),))))
+        return random_multipliers.pop() * self._value_from_type(augmentation_type)
 
 
 class MPIIPreprocessor(Preprocessor):
