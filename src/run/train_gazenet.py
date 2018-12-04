@@ -19,9 +19,9 @@ tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_string('norm', 'batch',
                        '[instance, batch] use instance norm or batch norm, default: instance')
 
-tf.flags.DEFINE_float('learning_rate', 0.0002,
+tf.flags.DEFINE_float('learning_rate', 2e-4,
                       'initial learning rate for Adam, default: 0.0002')
-tf.flags.DEFINE_float('regularisation_lambda', 0.01,
+tf.flags.DEFINE_float('regularisation_lambda', 1e-4,
                       'lambda for regulariation term, default: 0.1')
 tf.flags.DEFINE_float('beta1', 0.9,
                       'momentum term of Adam, default: 0.5')

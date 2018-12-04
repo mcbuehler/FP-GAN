@@ -1,5 +1,5 @@
 import os
-
+from shutil import copyfile
 
 def listdir(path, prefix='', postfix='', return_prefix=True, return_postfix=True):
     """
@@ -32,3 +32,12 @@ def save_images(tensor, path, image_names):
         filepath = "{}.jpg".format(os.path.join(path, image_names[i]))
         with open(filepath, 'wb') as f:
             f.write(tensor[i])
+
+
+def copy_json(image_ids, folder_input, folder_output):
+    for image_id in image_ids:
+        filename = "{}.json".format(image_id)
+        path_from = os.path.join(folder_input, filename)
+        path_to = os.path.join(folder_output, filename)
+        copyfile(path_from, path_to)
+

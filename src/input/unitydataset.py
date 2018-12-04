@@ -2,12 +2,13 @@ import os
 import ujson
 import cv2 as cv
 import tensorflow as tf
+from input.base_dataset import BaseDataset
 
 from input.preprocessing import UnityPreprocessor
 from util.files import listdir
 
 
-class UnityDataset:
+class UnityDataset(BaseDataset):
     """
     Dataset for UnityEyes.
     Call get_iterator() to get an iterator for this dataset.
@@ -15,13 +16,8 @@ class UnityDataset:
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False):
-        self.path_input = path_input
-        self.image_size = image_size
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.buffer_size = buffer_size
-        self.testing = testing
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True):
+        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, testing, repeat)
 
         self.unity_preprocessor = UnityPreprocessor(testing=testing,
                                                     eye_image_shape=self.image_size)
@@ -57,12 +53,7 @@ class UnityDataset:
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
         dataset = dataset.map(self._get_tensors)
 
-        if self.shuffle:
-            dataset = dataset.shuffle(buffer_size=self.buffer_size)
-        dataset = dataset.batch(self.batch_size)
-        if repeat:
-            dataset = dataset.repeat()
-        iterator = dataset.make_one_shot_iterator()
+        iterator = self._prepare_iterator(dataset)
         return iterator
 
     def _get_tensors(self, file_stem):
@@ -80,7 +71,7 @@ class UnityDataset:
         image_shape = (*self.image_size, 3)
         clean_eye.set_shape(image_shape)
         eye.set_shape(image_shape)
-        return {'clean_eye': clean_eye, 'eye': eye, 'gaze': gaze}
+        return {'id': file_stem, 'clean_eye': clean_eye, 'eye': eye, 'gaze': gaze}
 
 
 if __name__ == "__main__":

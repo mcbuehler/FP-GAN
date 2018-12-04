@@ -1,3 +1,5 @@
+import os
+
 from util.enum_classes import Mode
 from input.unitydataset import UnityDataset
 from input.mpiidataset import MPIIDataset
@@ -15,7 +17,7 @@ class DatasetManager:
             Mode.INFERENCE_MPII_TO_UNITY: MPIIDataset
         }
 
-    def _get_dataset_path(self, mode):
+    def get_dataset_path(self, mode):
         path = None
         if mode == Mode.TRAIN_UNITY:
             path = EV.get_value(EV.PATH_UNITY_TRAIN)
@@ -35,9 +37,13 @@ class DatasetManager:
 
         return path
 
+    def get_dataset_iterator_for_path(self, path, image_size, batch_size, shuffle=True, repeat=True, testing=False):
+        if os.path.isdir(path):
+            # We assume it is a UnityEyes dataset
+            dataset = UnityDataset
+        else:
+            # We assume it is a hdf5 file
+            dataset = MPIIDataset
 
-    def get_dataset_iterator(self, mode: Mode, image_size, batch_size, shuffle=True, repeat=True):
-        dataset = self.datasets[mode]
-        path = self._get_dataset_path(mode)
-        iterator = dataset(path, image_size, batch_size, shuffle).get_iterator(repeat=repeat)
+        iterator = dataset(path, image_size, batch_size, shuffle=shuffle, testing=testing, repeat=repeat).get_iterator()
         return iterator
