@@ -13,14 +13,16 @@ from util.enum_classes import Mode
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 32, 'batch size, default: 512')
+tf.flags.DEFINE_integer('batch_size', 128, 'batch size, default: 512')
 tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
 tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_string('norm', 'batch',
                        '[instance, batch] use instance norm or batch norm, default: instance')
 
-tf.flags.DEFINE_float('learning_rate', 0.0004,
+tf.flags.DEFINE_float('learning_rate', 0.0002,
                       'initial learning rate for Adam, default: 0.0002')
+tf.flags.DEFINE_float('regularisation_lambda', 0.01,
+                      'lambda for regulariation term, default: 0.1')
 tf.flags.DEFINE_float('beta1', 0.9,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_float('beta2', 0.999,
@@ -39,7 +41,7 @@ tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
 
-def get_loss(path, image_size, gazenet, mode):
+def get_loss(path, image_size, gazenet, mode, regulariser=None):
     datasets = {
         Mode.TRAIN_UNITY: UnityDataset,
         Mode.VALIDATION_UNITY: UnityDataset,
@@ -50,7 +52,7 @@ def get_loss(path, image_size, gazenet, mode):
     iterator = dataset(path, image_size, FLAGS.batch_size, shuffle=True).get_iterator()
     is_training = mode == Mode.TRAIN_UNITY
     gaze_dict_validation, loss_validation = gazenet.get_loss(
-        iterator, is_training=is_training, mode=mode)
+        iterator, is_training=is_training, mode=mode, regulariser=regulariser)
     return loss_validation
 
 
@@ -103,8 +105,8 @@ def train():
             )
 
             # Prepare training
-
-            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN_UNITY)
+            regulariser = tf.contrib.layers.l2_regularizer(scale=FLAGS.regularisation_lambda)
+            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser)
             optimizers = gazenet.optimize(loss_train)
 
             loss_validation_unity = get_loss(FLAGS.path_validation_unity, image_size, gazenet, mode=Mode.VALIDATION_UNITY)
@@ -128,7 +130,6 @@ def train():
             step = 0
 
         coord = tf.train.Coordinator()
-        # threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         try:
             while step < FLAGS.n_steps and not coord.should_stop():

@@ -286,6 +286,7 @@ def _weights_xavier(name, shape):
             dtype=tf.float32
         )
     )
+    tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, var)
     return var
 
 
@@ -303,6 +304,7 @@ def _weights(name, shape, mean=0.0, stddev=0.02):
         name, shape,
         initializer=tf.random_normal_initializer(
             mean=mean, stddev=stddev, dtype=tf.float32))
+    tf.add_to_collection(tf.GraphKeys.REGULARIZATION_LOSSES, var)
     return var
 
 

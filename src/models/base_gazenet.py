@@ -77,19 +77,31 @@ class BaseGazeNet:
     def create_name(self, name, prefix):
         return "{}/{}".format(prefix, name)
 
-    def get_loss(self, iterator, mode, is_training=True):
+    def get_loss(self, iterator, mode, is_training=True, regulariser=None):
+        # # summary
+        summary_pref = mode
+
         input_batch = iterator.get_next()
 
         input_eye = input_batch['eye']
         input_gaze = input_batch['gaze']
         output = self.forward(input_eye, mode=mode, is_training=is_training)
+        error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze, output)
 
-        loss_mse = tf.reduce_mean(tf.squared_difference(output, input_gaze))
+        loss_gaze = tf.reduce_mean(tf.squared_difference(output, input_gaze))
 
-        error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze,output)
+        if regulariser is not None:
+            # We add a regulariser
+            reg_variables = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+            reg_term = tf.contrib.layers.apply_regularization(regulariser,
+                                                          reg_variables)
+            tf.summary.scalar(self.create_name('loss/l2_reg', summary_pref),
+                              reg_term)
 
-        # # summary
-        summary_pref = mode
+            loss = loss_gaze + reg_term
+        else:
+            # we do not regularise
+            loss = loss_gaze
 
         tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
 
@@ -97,10 +109,10 @@ class BaseGazeNet:
         tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze)
         tf.summary.histogram(self.create_name('output/gaze', summary_pref), output)
 
-        tf.summary.scalar(self.create_name('loss/mse', summary_pref), loss_mse)
+        tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze)
         tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular)
 
-        return {'gaze': output}, loss_mse
+        return {'gaze': output}, loss
 
     def optimize(self, loss):
         def make_optimizer(loss, variables, name='Adam'):
