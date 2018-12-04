@@ -52,14 +52,16 @@ class UnityDataset:
                                  name="file_stems")
         return file_stems
 
-    def get_iterator(self):
+    def get_iterator(self, repeat=True):
         file_stems = self._get_filestems_tensor()
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
         dataset = dataset.map(self._get_tensors)
+
         if self.shuffle:
             dataset = dataset.shuffle(buffer_size=self.buffer_size)
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.repeat()
+        if repeat:
+            dataset = dataset.repeat()
         iterator = dataset.make_one_shot_iterator()
         return iterator
 

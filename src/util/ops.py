@@ -1,6 +1,6 @@
 import tensorflow as tf
 import util.utils as utils
-from util.mode import Mode
+from util.enum_classes import Mode
 
 def get_index_channels(data_format):
     # not used yet
@@ -262,7 +262,7 @@ def last_dense(input, mode, reuse=False, name=None):
         output = tf.add(tf.matmul(input, weights), biases)
 
         # if create_summaries:
-        if mode == Mode.TRAIN:
+        if mode == Mode.TRAIN_UNITY:
             tf.summary.histogram("weights", weights)
             tf.summary.histogram("input", input)
             tf.summary.histogram("output_before", output)

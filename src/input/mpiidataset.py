@@ -57,7 +57,7 @@ class MPIIDataset:
         self.preprocessor = MPIIPreprocessor(testing=testing,
                                         eye_image_shape=self.image_size)
 
-    def get_iterator(self):
+    def get_iterator(self, repeat=True):
         generator = MPIIGenerator(self.path_input, shuffle=self.shuffle)
         dataset = tf.data.Dataset.from_generator(
             generator,
@@ -69,7 +69,8 @@ class MPIIDataset:
         if self.shuffle:
             dataset = dataset.shuffle(buffer_size=self.buffer_size)
         dataset = dataset.batch(self.batch_size)
-        dataset = dataset.repeat()
+        if repeat:
+            dataset = dataset.repeat()
         iterator = dataset.make_one_shot_iterator()
         return iterator
 

@@ -8,7 +8,7 @@ from models.gazenet import GazeNet
 from input.unitydataset import UnityDataset
 from input.mpiidataset import MPIIDataset
 from util.log import write_parameter_summaries
-from util.mode import Mode
+from util.enum_classes import Mode
 
 
 FLAGS = tf.flags.FLAGS
@@ -41,14 +41,14 @@ tf.flags.DEFINE_string('data_format', 'NHWC',
 
 def get_loss(path, image_size, gazenet, mode):
     datasets = {
-        Mode.TRAIN: UnityDataset,
+        Mode.TRAIN_UNITY: UnityDataset,
         Mode.VALIDATION_UNITY: UnityDataset,
         Mode.VALIDATION_MPII: MPIIDataset
     }
     # Prepare validation
     dataset = datasets[mode]
     iterator = dataset(path, image_size, FLAGS.batch_size, shuffle=True).get_iterator()
-    is_training = mode == Mode.TRAIN
+    is_training = mode == Mode.TRAIN_UNITY
     gaze_dict_validation, loss_validation = gazenet.get_loss(
         iterator, is_training=is_training, mode=mode)
     return loss_validation
@@ -104,7 +104,7 @@ def train():
 
             # Prepare training
 
-            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN)
+            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN_UNITY)
             optimizers = gazenet.optimize(loss_train)
 
             loss_validation_unity = get_loss(FLAGS.path_validation_unity, image_size, gazenet, mode=Mode.VALIDATION_UNITY)
