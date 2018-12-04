@@ -5,7 +5,11 @@ import tensorflow as tf
 from datetime import datetime
 
 from models.gazenet import GazeNet
-from input.UnityDataset import UnityDataset
+from input.unitydataset import UnityDataset
+from input.mpiidataset import MPIIDataset
+from util.log import write_parameter_summaries
+from util.mode import Mode
+
 
 FLAGS = tf.flags.FLAGS
 
@@ -15,7 +19,7 @@ tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
 tf.flags.DEFINE_string('norm', 'batch',
                        '[instance, batch] use instance norm or batch norm, default: instance')
 
-tf.flags.DEFINE_float('learning_rate', 0.001,
+tf.flags.DEFINE_float('learning_rate', 0.0004,
                       'initial learning rate for Adam, default: 0.0002')
 tf.flags.DEFINE_float('beta1', 0.9,
                       'momentum term of Adam, default: 0.5')
@@ -23,8 +27,10 @@ tf.flags.DEFINE_float('beta2', 0.999,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_string('path_train', '../data/UnityEyesTrain',
                        'folder containing UnityEyes')
-tf.flags.DEFINE_string('path_validation', '../data/UnityEyesVal',
+tf.flags.DEFINE_string('path_validation_unity', '../data/UnityEyesVal',
                        'folder containing UnityEyes')
+tf.flags.DEFINE_string('path_validation_mpii', '../data/MPIIFaceGaze/single-eye_zhang.h5',
+                       'file containing MPIIGaze')
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
 tf.flags.DEFINE_integer('n_steps', 100000,
@@ -32,23 +38,32 @@ tf.flags.DEFINE_integer('n_steps', 100000,
 tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
+def get_loss(path, image_size, gazenet, mode):
+    datasets = {
+        Mode.TRAIN: UnityDataset,
+        Mode.VALIDATION_UNITY: UnityDataset,
+        Mode.VALIDATION_MPII: MPIIDataset
+    }
+    # Prepare validation
+    dataset = datasets[mode]
+    iterator = dataset(path, image_size, FLAGS.batch_size, shuffle=True).get_iterator()
+    gaze_dict_validation, loss_validation = gazenet.get_loss(
+        iterator, is_training=False, mode=mode)
+    return loss_validation
 
-def get_dataset_iterator(path_input, image_size, batch_size, shuffle):
-    dataset = UnityDataset(path_input, image_size, batch_size, shuffle)
-    return dataset.get_iterator()
 
-
-def perform_validation_step(sess, loss_validation, summary_op, step, train_writer):
-    loss_value, summary = (
+def perform_validation_step(sess, losses_validation, summary_op, step, train_writer):
+    loss_unity, loss_mpii, summary = (
         sess.run(
-            [loss_validation,
+            [*losses_validation,
              summary_op],
         )
     )
     logging.info('-----------TEST at Step %d:-------------' % step)
     logging.info('  Time: {}'.format(
         datetime.now().strftime('%b-%d-%I%M%p-%G')))
-    logging.info('  loss   : {}'.format(loss_value))
+    logging.info('  loss Unity     : {}'.format(loss_unity))
+    logging.info('  loss MPIIGaze  : {}'.format(loss_mpii))
 
     train_writer.add_summary(summary, step)
     train_writer.flush()
@@ -86,22 +101,13 @@ def train():
             )
 
             # Prepare training
-            image_queue_train = get_dataset_iterator(
-                FLAGS.path_train,
-                batch_size=FLAGS.batch_size,
-                image_size=image_size,
-                shuffle=True)
-            gaze_dict_train, loss_train = gazenet.get_loss(image_queue_train)
-            optimizers = gazenet.optimize(loss_train, n_steps=FLAGS.n_steps)
 
-            # Prepare validation
-            image_queue_validation = get_dataset_iterator(
-                FLAGS.path_validation,
-                batch_size=FLAGS.batch_size,
-                image_size=image_size,
-                shuffle=False)
-            gaze_dict_validation, loss_validation = gazenet.get_loss(
-                image_queue_validation, is_training=False)
+            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN)
+            optimizers = gazenet.optimize(loss_train)
+
+            loss_validation_unity = get_loss(FLAGS.path_validation_unity, image_size, gazenet, mode=Mode.VALIDATION_UNITY)
+            loss_validation_mpii = get_loss(
+                FLAGS.path_validation_mpii, image_size, gazenet, mode=Mode.VALIDATION_MPII)
 
             # Summaries and saver
             summary_op = tf.summary.merge_all()
@@ -115,6 +121,7 @@ def train():
             restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
             step = int(meta_graph_path.split("-")[2].split(".")[0])
         else:
+            write_parameter_summaries(gazenet, os.path.join(checkpoints_dir, "config.json"))
             sess.run(tf.global_variables_initializer())
             step = 0
 
@@ -123,7 +130,6 @@ def train():
 
         try:
             while step < FLAGS.n_steps and not coord.should_stop():
-
                 # Perform a training step
                 _, loss_value, summary = (
                     sess.run(
@@ -134,8 +140,7 @@ def train():
                 train_writer.add_summary(summary, step)
                 train_writer.flush()
 
-                n_info_steps = 100
-                if step % n_info_steps == 0:
+                if step % 100 == 0:
                     # coord.
                     logging.info('Step {} -->  Time: {}    loss:  {}'.format(
                         step,
@@ -143,8 +148,9 @@ def train():
                         loss_value)
                     )
 
-                if step % 1000 == 0:
-                    perform_validation_step(sess, loss_validation, summary_op, step, train_writer)
+                if step >= 0 and step % 1000 == 0:
+                    perform_validation_step(sess, [loss_validation_unity,
+                        loss_validation_mpii], summary_op, step, train_writer)
 
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",

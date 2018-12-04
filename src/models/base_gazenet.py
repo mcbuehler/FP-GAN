@@ -34,6 +34,7 @@ class BaseGazeNet:
                  learning_rate=2e-4,
                  beta1=0.9,
                  beta2=0.999,
+                 Optimiser=tf.train.AdamOptimizer,
                  tf_session=None
                  ):
         """
@@ -60,9 +61,10 @@ class BaseGazeNet:
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.beta2 = beta2
+        self.Optimiser = Optimiser
         self.tf_session = tf_session
 
-    def forward(self, input, is_training=True):
+    def forward(self, input, mode, is_training=True):
         """
         Args:
           input: batch_size x image_size x image_size x 3
@@ -75,19 +77,19 @@ class BaseGazeNet:
     def create_name(self, name, prefix):
         return "{}/{}".format(prefix, name)
 
-    def get_loss(self, iterator, is_training=True):
+    def get_loss(self, iterator, mode, is_training=True):
         input_batch = iterator.get_next()
 
         input_eye = input_batch['eye']
         input_gaze = input_batch['gaze']
-        output = self.forward(input_eye, is_training=is_training)
+        output = self.forward(input_eye, mode=mode, is_training=is_training)
 
         loss_mse = tf.reduce_mean(tf.squared_difference(output, input_gaze))
 
         error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze,output)
 
         # # summary
-        summary_pref = "train" if is_training else "test"
+        summary_pref = mode
 
         tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
 
@@ -100,7 +102,7 @@ class BaseGazeNet:
 
         return {'gaze': output}, loss_mse
 
-    def optimize(self, loss, n_steps=200000):
+    def optimize(self, loss):
         def make_optimizer(loss, variables, name='Adam'):
             """ Adam optimizer with learning rate 0.0002 for the first 100k
             steps (~100 epochs)
@@ -131,7 +133,7 @@ class BaseGazeNet:
                 # tf.train.GradientDescentOptimizer(self.learning_rate).minimize(loss,
                 #                                                                global_step,
                 #                                                                variables)
-                tf.train.AdamOptimizer(self.learning_rate, beta1=self.beta1, beta2=self.beta2, name=name)
+                self.Optimiser(self.learning_rate, beta1=self.beta1, beta2=self.beta2, name=name)
                     .minimize(loss, global_step=global_step,
                               var_list=variables)
             )

@@ -2,8 +2,17 @@ import numpy as np
 import cv2 as cv
 import tensorflow as tf
 
+class Preprocessor:
 
-class ImagePreprocessor:
+    @staticmethod
+    def equalize(image):  # Proper colour image intensity equalization
+        ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
+        ycrcb[:, :, 0] = cv.equalizeHist(ycrcb[:, :, 0])
+        output = cv.cvtColor(ycrcb, cv.COLOR_YCrCb2RGB)
+        return output
+
+
+class UnityPreprocessor(Preprocessor):
     def __init__(self,
                  testing=False,
                  eye_image_shape=(36, 60)):
@@ -220,9 +229,23 @@ class ImagePreprocessor:
         return_keys = ['clean_eye', 'eye', 'gaze']
         return [result_dict[k] for k in return_keys]
 
-    @staticmethod
-    def equalize(image):  # Proper colour image intensity equalization
-        ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
-        ycrcb[:, :, 0] = cv.equalizeHist(ycrcb[:, :, 0])
-        output = cv.cvtColor(ycrcb, cv.COLOR_YCrCb2RGB)
-        return output
+
+class MPIIPreprocessor(Preprocessor):
+    def __init__(self,
+                 testing=False,
+                 eye_image_shape=(36, 60)):
+        self._eye_image_shape = eye_image_shape
+        self.testing = testing
+
+    def preprocess(self, image):
+        # BGR to RGB conversion
+        image = image[..., ::-1]
+
+        if self._eye_image_shape is not None:
+            oh, ow = self._eye_image_shape
+            image = cv.resize(image, (ow, oh))
+        image = self.equalize(image)
+        image = image.astype(np.float32)
+        image *= 2.0 / 255.0
+        image -= 1.0
+        return image

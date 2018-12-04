@@ -1,6 +1,6 @@
 import tensorflow as tf
 import util.utils as utils
-
+from util.mode import Mode
 
 def get_index_channels(data_format):
     # not used yet
@@ -196,7 +196,7 @@ def last_conv(input, reuse=False, use_sigmoid=False, name=None):
 
 ### Eye gaze estimation network layers
 def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
-            norm='instance', create_summaries=False):
+            norm='instance', mode=""):
     """
     Convolutional layer
     """
@@ -205,8 +205,8 @@ def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
         weights = _weights_xavier("weights",
                            shape=[3, 3, input.get_shape()[3], k])
 
-        if create_summaries:
-            tf.summary.histogram("weights", weights)
+        # if mode:
+        #     tf.summary.histogram("weights", weights)
 
         conv = tf.nn.conv2d(input, weights,
                             strides=[1, stride, stride, 1], padding='SAME')
@@ -232,21 +232,21 @@ def maxpool(input, k, name, stride=2, reuse=False):
     return pooled
 
 
-def dense(input, d, name, reuse=False, create_summaries=True):
+def dense(input, d, name, mode, reuse=False):
     with tf.variable_scope(name, reuse=reuse):
         w = _weights("weights", shape=[input.shape[1], d])
         b = _biases("offset", shape=[1])
         z = tf.add(tf.matmul(input, w), b)
         a = tf.nn.relu(z)
 
-        if create_summaries:
-            tf.summary.histogram("weights", w)
-            tf.summary.histogram("z", z)
+        # if mode == Mode:
+        #     tf.summary.histogram("weights", w)
+        #     tf.summary.histogram("z", z)
 
     return a
 
 
-def last_dense(input, reuse=False, use_sigmoid=False, name=None, create_summaries=True):
+def last_dense(input, mode, reuse=False, name=None):
     """ Last dense layer of eye gaze network
     Args:
       input: 4D tensor
@@ -261,11 +261,18 @@ def last_dense(input, reuse=False, use_sigmoid=False, name=None, create_summarie
 
         output = tf.add(tf.matmul(input, weights), biases)
 
-        if create_summaries:
+        # if create_summaries:
+        if mode == Mode.TRAIN:
             tf.summary.histogram("weights", weights)
+            tf.summary.histogram("input", input)
+            tf.summary.histogram("output_before", output)
+        # make sure to have outputs in the range [-1, 1]
+        # output = tf.nn.l2_normalize(output)
+        # output = tf.add(tf.multiply(output, 2), -1)
+        # output = tf.multiply(tf.nn.tanh(output), 2)
 
-        if use_sigmoid:
-            output = tf.sigmoid(output)
+
+
     return output
 
 
