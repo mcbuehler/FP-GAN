@@ -3,7 +3,7 @@ import ujson
 import cv2 as cv
 import tensorflow as tf
 
-from input.preprocessing import ImagePreprocessor
+from input.preprocessing import UnityPreprocessor
 from util.files import listdir
 
 
@@ -15,15 +15,16 @@ class UnityDataset:
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000):
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False):
         self.path_input = path_input
         self.image_size = image_size
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.buffer_size = buffer_size
+        self.testing = testing
 
-        self.unity_preprocessor = ImagePreprocessor(testing=False,
-                                               eye_image_shape=self.image_size)
+        self.unity_preprocessor = UnityPreprocessor(testing=testing,
+                                                    eye_image_shape=self.image_size)
 
     def _read_image(self, filename):
         image = cv.imread(filename, cv.IMREAD_COLOR)
