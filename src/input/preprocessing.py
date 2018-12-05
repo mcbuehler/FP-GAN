@@ -1,12 +1,17 @@
 import numpy as np
 import cv2 as cv
-import tensorflow as tf
 from util.log import get_logger
+from util import gaze as gaze_func
 
 logger = get_logger()
 
 
 class Preprocessor:
+    @staticmethod
+    def bgr2rgb(image):
+        # BGR to RGB conversion
+        image = image[..., ::-1]
+        return image
 
     @staticmethod
     def equalize(image):  # Proper colour image intensity equalization
@@ -31,42 +36,16 @@ class UnityPreprocessor(Preprocessor):
         self._eye_image_shape = eye_image_shape
 
         # Define bounds for noise values for different augmentation types
-        self._difficulty = 0.0
+        self._difficulty = 1
         self._augmentation_ranges = {  # (easy, hard)
             'translation': (2.0, 10.0),
-            'rotation': (0.1, 2.0),
             'intensity': (0.5, 20.0),
             'blur': (0.1, 1.0),
             'scale': (0.01, 0.1),
             'rescale': (1.0, 0.2),
-            'num_line': (0.0, 2.0),
-            'heatmap_sigma': (5.0, 2.5),
         }
 
-    def augment(self, eye):
-        oh, ow = self._eye_image_shape
-
-        # Draw line randomly
-        num_line_noise = int(np.round(self._noisy_value_from_type('num_line')))
-        if num_line_noise > 0:
-            line_rand_nums = np.random.rand(5 * num_line_noise)
-            for i in range(num_line_noise):
-                j = 5 * i
-                lx0, ly0 = int(ow * line_rand_nums[j]), oh
-                lx1, ly1 = ow, int(oh * line_rand_nums[j + 1])
-                direction = line_rand_nums[j + 2]
-                if direction < 0.25:
-                    lx1 = ly0 = 0
-                elif direction < 0.5:
-                    lx1 = 0
-                elif direction < 0.75:
-                    ly0 = 0
-                line_colour = int(255 * line_rand_nums[j + 3])
-                eye = cv.line(eye, (lx0, ly0), (lx1, ly1),
-                              color=(line_colour, line_colour, line_colour),
-                              thickness=int(6 * line_rand_nums[j + 4]),
-                              lineType=cv.LINE_AA)
-
+    def _rescale(self, eye, ow, oh):
         # Rescale image if required
         rescale_max = self._value_from_type('rescale')
         if rescale_max < 1.0:
@@ -75,8 +54,12 @@ class UnityPreprocessor(Preprocessor):
             eye = cv.resize(eye, dsize=(0, 0), fx=rescale_noise,
                             fy=rescale_noise,
                             interpolation=interpolation)
-            eye = cv.equalizeHist(eye)
+
+            eye = self.equalize(eye)
             eye = cv.resize(eye, dsize=(ow, oh), interpolation=interpolation)
+        return eye
+
+    def _rgb_noise(self, eye):
 
         # Add rgb noise to eye image
         intensity_noise = int(self._value_from_type('intensity'))
@@ -87,11 +70,22 @@ class UnityPreprocessor(Preprocessor):
                                      size=eye.shape, dtype=np.int16)
             cv.normalize(eye, eye, alpha=0, beta=255, norm_type=cv.NORM_MINMAX)
             eye = eye.astype(np.uint8)
+        return eye
 
+    def _blur(self, eye):
         # Add blur to eye image
         blur_noise = self._noisy_value_from_type('blur')
         if blur_noise > 0:
             eye = cv.GaussianBlur(eye, (7, 7), 0.5 + np.abs(blur_noise))
+        return eye
+
+    def augment(self, eye):
+        oh, ow = self._eye_image_shape
+
+        eye = self._rescale(eye, oh, ow)
+        eye = self._rgb_noise(eye)
+        eye = self._blur(eye)
+
         return eye
 
     def preprocess(self, full_image, json_data):
@@ -110,13 +104,11 @@ class UnityPreprocessor(Preprocessor):
         caruncle_landmarks = process_coords(json_data['caruncle_2d'])
         iris_landmarks = process_coords(json_data['iris_2d'])
 
-        # Only select almost frontal images
         h_pitch, h_yaw, _ = eval(json_data['head_pose'])
         if h_pitch > 180.0:  # Need to correct pitch
             h_pitch -= 360.0
         h_yaw -= 180.0  # Need to correct yaw
-        # if abs(h_pitch) > 20 or abs(h_yaw) > 20:
-        #     return None
+
         h_pitch = -h_pitch
         h_yaw = -h_yaw
         result_dict['head'] = np.asarray([np.radians(h_pitch), np.radians(h_yaw)],
@@ -132,18 +124,6 @@ class UnityPreprocessor(Preprocessor):
         # Centre axes to eyeball centre
         translate_mat = np.asmatrix(np.eye(3))
         translate_mat[:2, 2] = [[-iw_2], [-ih_2]]
-
-        # Rotate eye image if requested
-        rotate_mat = np.asmatrix(np.eye(3))
-        rotation_noise = self._noisy_value_from_type('rotation')
-        if rotation_noise > 0:
-            rotate_angle = np.radians(rotation_noise)
-            cos_rotate = np.cos(rotate_angle)
-            sin_rotate = np.sin(rotate_angle)
-            rotate_mat[0, 0] = cos_rotate
-            rotate_mat[0, 1] = -sin_rotate
-            rotate_mat[1, 0] = sin_rotate
-            rotate_mat[1, 1] = cos_rotate
 
         # Scale image to fit output dimensions (with a little bit of noise)
         scale_mat = np.asmatrix(np.eye(3))
@@ -164,6 +144,7 @@ class UnityPreprocessor(Preprocessor):
         recentre_mat[1, 2] += self._noisy_value_from_type('translation')  # y
 
         # Apply transforms
+        rotate_mat = np.asmatrix(np.eye(3))
         transform_mat = recentre_mat * scale_mat * rotate_mat * translate_mat
         eye = cv.warpAffine(full_image, transform_mat[:2, :3], (ow, oh))
 
@@ -180,11 +161,10 @@ class UnityPreprocessor(Preprocessor):
         look_vec = np.array(eval(json_data['eye_details']['look_vec']))[:3]
         look_vec[0] = -look_vec[0]
 
-        import util.gaze as gaze
-        original_gaze = gaze.vector_to_pitchyaw(look_vec.reshape((1, 3))).flatten()
+        original_gaze = gaze_func.vector_to_pitchyaw(look_vec.reshape((1, 3))).flatten()
         look_vec = rotate_mat * look_vec.reshape(3, 1)
 
-        gaze = gaze.vector_to_pitchyaw(look_vec.reshape((1, 3))).flatten()
+        gaze = gaze_func.vector_to_pitchyaw(look_vec.reshape((1, 3))).flatten()
         if gaze[1] > 0.0:
             gaze[1] = np.pi - gaze[1]
         elif gaze[1] < 0.0:
@@ -249,8 +229,7 @@ class MPIIPreprocessor(Preprocessor):
         self.testing = testing
 
     def preprocess(self, image):
-        # BGR to RGB conversion
-        image = image[..., ::-1]
+        image = self.bgr2rgb(image)
 
         if self._eye_image_shape is not None:
             oh, ow = self._eye_image_shape
