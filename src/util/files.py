@@ -26,12 +26,12 @@ def create_folder_if_not_exists(path):
         os.mkdir(path)
 
 
-def save_images(tensor, path, image_names):
-    assert tensor.size == len(image_names)
-    for i in range(tensor.size):
-        filepath = "{}.jpg".format(os.path.join(path, image_names[i]))
+def save_images(tensor_generated, path, image_names, suffix=''):
+    assert len(tensor_generated) == len(image_names)
+    for i in range(len(tensor_generated)):
+        filepath = os.path.join(path, "{}{}.jpg".format(image_names[i], suffix))
         with open(filepath, 'wb') as f:
-            f.write(tensor[i])
+            f.write(tensor_generated[i])
 
 
 def copy_json(image_ids, folder_input, folder_output):

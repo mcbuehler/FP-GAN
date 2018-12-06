@@ -9,8 +9,9 @@ import os
 import tensorflow as tf
 
 from input.dataset_manager import DatasetManager
-from util.enum_classes import Mode
 from util.files import save_images, create_folder_if_not_exists, copy_json
+from util.utils import convert2int
+
 
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_integer('batch_size', 128, 'batch size, default: 512')
@@ -39,6 +40,15 @@ create_folder_if_not_exists(output_folder)
 logging.info("Reading images from '{}'".format(FLAGS.input))
 logging.info("Loading model from '{}'".format(model_path))
 logging.info("Writing images and json files to '{}'".format(output_folder))
+
+
+def get_encoded_tensor(images):
+    tensors_clean = convert2int(images)
+    encoded_jpg = tf.map_fn(tf.image.encode_jpeg, tensors_clean,
+                            dtype=tf.string)
+    return encoded_jpg
+
+
 
 def inference():
     graph = tf.Graph()
@@ -73,8 +83,9 @@ def inference():
                 try:
                     entry = iterator.get_next()
                     eyes = entry['eye']
+                    eyes_clean = entry['clean_eye']
                     ids = entry['id']
-                    batch_eyes, batch_ids = sess.run([eyes, ids])
+                    batch_eyes, batch_ids, batch_eyes_clean = sess.run([eyes, ids, eyes_clean])
                     # Ids are returned as byte
                     image_ids = [id.decode('utf-8') for id in batch_ids]
 
@@ -82,6 +93,16 @@ def inference():
                                     input_tensor: batch_eyes
                                 })
                     save_images(generated, output_folder, image_ids)
+
+                    # get clean images
+
+                    images_clean = sess.run(get_encoded_tensor(eyes_clean))
+                    save_images(images_clean, output_folder, image_ids, suffix="_clean")
+
+                    images_clean = sess.run(get_encoded_tensor(eyes))
+                    save_images(images_clean, output_folder, image_ids, suffix="_original")
+
+
                     copy_json(image_ids, FLAGS.input, output_folder)
                     counter += len(image_ids)
 
