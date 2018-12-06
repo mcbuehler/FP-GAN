@@ -114,7 +114,7 @@ class BaseGazeNet:
             tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze)
             tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular)
 
-        return {'gaze': output}, loss
+        return {'gaze': output, 'error_angular': error_angular}, loss
 
     def optimize(self, loss):
         def make_optimizer(loss, variables, name='Adam'):

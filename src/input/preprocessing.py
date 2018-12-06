@@ -24,7 +24,7 @@ class Preprocessor:
 class UnityPreprocessor(Preprocessor):
     def __init__(self,
                  testing=False,
-                 eye_image_shape=(36, 60)):
+                 eye_image_shape=[72, 120]):
 
         """Create queues and threads to read and preprocess data."""
         self._short_name = 'UnityEyes'
@@ -56,7 +56,7 @@ class UnityPreprocessor(Preprocessor):
                             interpolation=interpolation)
 
             eye = self.equalize(eye)
-            eye = cv.resize(eye, dsize=(ow, oh), interpolation=interpolation)
+            eye = cv.resize(eye, dsize=(oh, ow), interpolation=interpolation)
         return eye
 
     def _rgb_noise(self, eye):

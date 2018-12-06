@@ -63,34 +63,41 @@ class Validation:
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
 
     def get_loss(self, model):
-        _, loss_validation = model.get_loss(
+        outputs, loss_validation = model.get_loss(
             self.iterator, is_training=False, mode=self.mode)
-        return loss_validation
+        return outputs, loss_validation
 
-    def _log_result(self, loss_mean, loss_std, step, train_writer):
+    def _log_result(self, loss_mean, loss_std, error_angular, step, train_writer):
         logging.info('-----------Validation at Step %d:-------------' % step)
         logging.info('  Time: {}'.format(
             datetime.now().strftime('%b-%d-%I%M%p-%G')))
         logging.info(
-            '  loss {}     : {} (std: {:.4f})'.format(self.mode, loss_mean,
-                                                      loss_std))
+            '  loss {}     : {} (std: {:.4f}, angular: {:.4f})'.format(self.mode, loss_mean,
+                                                      loss_std, error_angular))
 
         summary = tf.Summary()
-        summary.value.add(tag="{}/mse".format(self.mode),
+        summary.value.add(tag="{}/gaze_mse".format(self.mode),
                           simple_value=loss_mean)
+        summary.value.add(tag="{}/angular_error".format(self.mode),
+                          simple_value=error_angular)
         train_writer.add_summary(summary, step)
         train_writer.flush()
 
     def perform_validation_step(self, sess, model, step, train_writer):
         logging.info("Preparing validation...")
-        loss = self.get_loss(model)
+        outputs, loss = self.get_loss(model)
         logging.info("Running {} batches...".format(self.n_batches_per_epoch))
-        loss_values = [sess.run(loss) for i in range(self.n_batches_per_epoch)]
+        results = [sess.run([outputs['error_angular'], loss]) for i in range(self.n_batches_per_epoch)]
+        # loss_values is a list [[angular, mse], [angular, mse],...]
+        loss_values = [r[1] for r in results]
+        angular_values = [r[0] for r in results]
 
         loss_mean = np.mean(loss_values)
         loss_std = np.std(loss_values)
 
-        self._log_result(loss_mean, loss_std, step, train_writer)
+        angular_error = np.mean(angular_values)
+
+        self._log_result(loss_mean, loss_std, angular_error, step, train_writer)
 
 
 def train():
@@ -188,7 +195,7 @@ def train():
                         loss_value)
                     )
 
-                if step >= 0 and step % 5000 == 0:
+                if step > 0 and step % 5000 == 0:
                     validation_unity.perform_validation_step(sess,
                                                              gazenet,
                                                              step,

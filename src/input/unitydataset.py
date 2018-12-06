@@ -50,7 +50,7 @@ class UnityDataset(BaseDataset):
                                  name="file_stems")
         return file_stems
 
-    def get_iterator(self, repeat=True):
+    def get_iterator(self):
         file_stems = self._get_filestems_tensor()
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
         dataset = dataset.map(self._get_tensors)
