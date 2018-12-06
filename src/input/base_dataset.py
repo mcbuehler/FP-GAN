@@ -23,6 +23,7 @@ class BaseDataset:
         if self.shuffle:
             dataset = dataset.shuffle(buffer_size=self.buffer_size)
         dataset = dataset.batch(self.batch_size)
+        dataset = dataset.prefetch(self.buffer_size)
         if self.repeat:
             dataset = dataset.repeat()
         iterator = dataset.make_one_shot_iterator()
