@@ -1,12 +1,12 @@
 import logging
 import os
+import numpy as np
+from input.dataset_manager import DatasetManager
 
 import tensorflow as tf
 from datetime import datetime
 
 from models.gazenet import GazeNet
-from input.unitydataset import UnityDataset
-from input.mpiidataset import MPIIDataset
 from util.log import write_parameter_summaries
 from util.enum_classes import Mode
 
@@ -21,8 +21,11 @@ tf.flags.DEFINE_string('norm', 'batch',
 
 tf.flags.DEFINE_float('learning_rate', 2e-4,
                       'initial learning rate for Adam, default: 0.0002')
+
+tf.flags.DEFINE_bool('use_regulariser', False,
+                      'regulariser')
 tf.flags.DEFINE_float('regularisation_lambda', 1e-4,
-                      'lambda for regulariation term, default: 0.1')
+                      'lambda for regularisation term, default: 0.1')
 tf.flags.DEFINE_float('beta1', 0.9,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_float('beta2', 0.999,
@@ -31,8 +34,8 @@ tf.flags.DEFINE_string('path_train', '../data/UnityEyesTrain',
                        'folder containing UnityEyes')
 tf.flags.DEFINE_string('path_validation_unity', '../data/UnityEyesVal',
                        'folder containing UnityEyes')
-tf.flags.DEFINE_string('path_validation_mpii', '../data/MPIIFaceGaze/single-eye_zhang.h5',
-                       'file containing MPIIGaze')
+tf.flags.DEFINE_string('path_validation_mpii', '../data/MPIIFaceGaze/single-eye-right_zhang.h5',
+                       'file containing MPIIGaze. We only use eyes from one side.')
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
 tf.flags.DEFINE_integer('n_steps', 100000,
@@ -41,36 +44,53 @@ tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
 
 
-def get_loss(path, image_size, gazenet, mode, regulariser=None):
-    datasets = {
-        Mode.TRAIN_UNITY: UnityDataset,
-        Mode.VALIDATION_UNITY: UnityDataset,
-        Mode.VALIDATION_MPII: MPIIDataset
-    }
-    # Prepare validation
-    dataset = datasets[mode]
-    iterator = dataset(path, image_size, FLAGS.batch_size, shuffle=True).get_iterator()
-    is_training = mode == Mode.TRAIN_UNITY
+def get_loss(iterator, gazenet, mode, regulariser=None, is_training=True):
     gaze_dict_validation, loss_validation = gazenet.get_loss(
         iterator, is_training=is_training, mode=mode, regulariser=regulariser)
     return loss_validation
 
 
-def perform_validation_step(sess, losses_validation, summary_op, step, train_writer):
-    loss_unity, loss_mpii, summary = (
-        sess.run(
-            [*losses_validation,
-             summary_op],
-        )
-    )
-    logging.info('-----------TEST at Step %d:-------------' % step)
-    logging.info('  Time: {}'.format(
-        datetime.now().strftime('%b-%d-%I%M%p-%G')))
-    logging.info('  loss Unity     : {}'.format(loss_unity))
-    logging.info('  loss MPIIGaze  : {}'.format(loss_mpii))
+class Validation:
+    def __init__(self, mode, path, image_size, batch_size):
+        self.iterator = DatasetManager.get_dataset_iterator_for_path(
+            path,
+            image_size,
+            batch_size,
+            shuffle=False,
+            repeat=True,
+            testing=True)
+        self.mode = mode
+        self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
 
-    train_writer.add_summary(summary, step)
-    train_writer.flush()
+    def get_loss(self, model):
+        _, loss_validation = model.get_loss(
+            self.iterator, is_training=False, mode=self.mode)
+        return loss_validation
+
+    def _log_result(self, loss_mean, loss_std, step, train_writer):
+        logging.info('-----------Validation at Step %d:-------------' % step)
+        logging.info('  Time: {}'.format(
+            datetime.now().strftime('%b-%d-%I%M%p-%G')))
+        logging.info(
+            '  loss {}     : {} (std: {:.4f})'.format(self.mode, loss_mean,
+                                                      loss_std))
+
+        summary = tf.Summary()
+        summary.value.add(tag="{}/mse".format(self.mode),
+                          simple_value=loss_mean)
+        train_writer.add_summary(summary, step)
+        train_writer.flush()
+
+    def perform_validation_step(self, sess, model, step, train_writer):
+        logging.info("Preparing validation...")
+        loss = self.get_loss(model)
+        logging.info("Running {} batches...".format(self.n_batches_per_epoch))
+        loss_values = [sess.run(loss) for i in range(self.n_batches_per_epoch)]
+
+        loss_mean = np.mean(loss_values)
+        loss_std = np.std(loss_values)
+
+        self._log_result(loss_mean, loss_std, step, train_writer)
 
 
 def train():
@@ -105,13 +125,31 @@ def train():
             )
 
             # Prepare training
-            regulariser = tf.contrib.layers.l2_regularizer(scale=FLAGS.regularisation_lambda)
-            loss_train = get_loss(FLAGS.path_train, image_size, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser)
+            if FLAGS.use_regulariser:
+                logging.info("Using a l2 regulariser")
+                regulariser = tf.contrib.layers.l2_regularizer(scale=FLAGS.regularisation_lambda)
+            else:
+                regulariser = None
+            train_iterator = DatasetManager.get_dataset_iterator_for_path(
+                FLAGS.path_train, image_size, FLAGS.batch_size,
+                shuffle=True, repeat=True, testing=False
+            )
+            loss_train = get_loss(train_iterator, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser, is_training=True)
             optimizers = gazenet.optimize(loss_train)
 
-            loss_validation_unity = get_loss(FLAGS.path_validation_unity, image_size, gazenet, mode=Mode.VALIDATION_UNITY)
-            loss_validation_mpii = get_loss(
-                FLAGS.path_validation_mpii, image_size, gazenet, mode=Mode.VALIDATION_MPII)
+            # Validation graphs
+            validation_unity = Validation(
+                Mode.VALIDATION_UNITY,
+                FLAGS.path_validation_unity,
+                image_size,
+                FLAGS.batch_size
+            )
+            validation_mpii = Validation(
+                Mode.VALIDATION_MPII,
+                FLAGS.path_validation_mpii,
+                image_size,
+                FLAGS.batch_size
+            )
 
             # Summaries and saver
             summary_op = tf.summary.merge_all()
@@ -144,16 +182,21 @@ def train():
                 train_writer.flush()
 
                 if step % 100 == 0:
-                    # coord.
                     logging.info('Step {} -->  Time: {}    loss:  {}'.format(
                         step,
                         datetime.now().strftime('%b-%d-%I%M%p-%G'),
                         loss_value)
                     )
 
-                if step >= 0 and step % 1000 == 0:
-                    perform_validation_step(sess, [loss_validation_unity,
-                        loss_validation_mpii], summary_op, step, train_writer)
+                if step >= 0 and step % 5000 == 0:
+                    validation_unity.perform_validation_step(sess,
+                                                             gazenet,
+                                                             step,
+                                                             train_writer)
+                    validation_mpii.perform_validation_step(sess,
+                                                             gazenet,
+                                                             step,
+                                                             train_writer)
 
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",

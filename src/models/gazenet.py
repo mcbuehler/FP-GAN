@@ -16,7 +16,7 @@ Input (35x55)
 -> FC9600
 -> FC1000
 -> FC3
--> l2 normalisation
+# -> l2 normalisation
 -> l2 loss
 LR = =.001
 batch_size=512

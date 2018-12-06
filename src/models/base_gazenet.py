@@ -103,14 +103,16 @@ class BaseGazeNet:
             # we do not regularise
             loss = loss_gaze
 
-        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
+        if is_training:
+            # Create summaries
+            tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
 
-        tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye)
-        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze)
-        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output)
+            tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye)
+            tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze)
+            tf.summary.histogram(self.create_name('output/gaze', summary_pref), output)
 
-        tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze)
-        tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular)
+            tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze)
+            tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular)
 
         return {'gaze': output}, loss
 

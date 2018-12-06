@@ -2,6 +2,8 @@ import os
 import ujson
 import cv2 as cv
 import tensorflow as tf
+import logging
+
 from input.base_dataset import BaseDataset
 
 from input.preprocessing import UnityPreprocessor
@@ -54,6 +56,7 @@ class UnityDataset(BaseDataset):
         dataset = dataset.map(self._get_tensors)
 
         iterator = self._prepare_iterator(dataset)
+        self._iterator_ready_info()
         return iterator
 
     def _get_tensors(self, file_stem):

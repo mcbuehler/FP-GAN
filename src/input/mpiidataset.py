@@ -2,6 +2,7 @@ import h5py
 import tensorflow as tf
 from input.preprocessing import MPIIPreprocessor
 from input.base_dataset import BaseDataset
+import logging
 
 
 class MPIIGenerator:
@@ -12,6 +13,7 @@ class MPIIGenerator:
         # number of samples per person
         # e.g. ('p01', 5) refers to sample 5 for person 'p01'
         self.all_identifiers = self._create_all_identifiers()
+        self.N = len(self.all_identifiers)
         if shuffle:
             # We want to draw samples from different people in random order
             self.all_identifiers = list(set(self.all_identifiers))
@@ -56,6 +58,8 @@ class MPIIDataset(BaseDataset):
 
     def get_iterator(self, repeat=True):
         generator = MPIIGenerator(self.path_input, shuffle=self.shuffle)
+        self.N = generator.N
+
         dataset = tf.data.Dataset.from_generator(
             generator,
             {'eye': tf.uint8, 'gaze': tf.float32},
@@ -64,6 +68,8 @@ class MPIIDataset(BaseDataset):
 
         dataset = dataset.map(self._get_tensors)
         iterator = self._prepare_iterator(dataset)
+
+        self._iterator_ready_info()
         return iterator
 
     def _get_tensors(self, entry):

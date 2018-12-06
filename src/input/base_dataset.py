@@ -1,3 +1,6 @@
+import logging
+
+
 class BaseDataset:
     """
     Base Dataset.
@@ -27,3 +30,12 @@ class BaseDataset:
 
     def get_iterator(self):
         raise NotImplementedError("Implement in subclass!")
+
+    def _iterator_ready_info(self):
+        logging.info("Dataset loaded from '{}'. {} images to serve".
+                     format(self.path_input, self.N))
+
+    def get_n_batches_per_epoch(self):
+        n_batches = int(self.N / self.batch_size) + 1
+        return n_batches
+
