@@ -96,12 +96,14 @@ def train():
             step = 0
 
         coord = tf.train.Coordinator()
+        # Collect errors
+        errors = list()
 
-        try:
-            fake_Y_pool = ImagePool(FLAGS.pool_size)
-            fake_X_pool = ImagePool(FLAGS.pool_size)
+        fake_Y_pool = ImagePool(FLAGS.pool_size)
+        fake_X_pool = ImagePool(FLAGS.pool_size)
 
-            while step < FLAGS.n_steps and not coord.should_stop():
+        while step < FLAGS.n_steps and not coord.should_stop():
+            try:
                 fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
 
                 _, G_loss_val, D_Y_loss_val, F_loss_val, D_X_loss_val, summary = (
@@ -135,17 +137,19 @@ def train():
                     logging.info("Model saved in file: %s" % save_path)
 
                 step += 1
-        except KeyboardInterrupt:
-            logging.info('Interrupted')
-            coord.request_stop()
-        except Exception as e:
-            coord.request_stop(e)
-        finally:
-            save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
-                                   global_step=step)
-            logging.info("Model saved in file: %s" % save_path)
-            # When done, ask the threads to stop.
-            coord.request_stop()
+            except KeyboardInterrupt:
+                logging.info('Interrupted')
+                coord.request_stop()
+            except ValueError as e:
+                errors.append(e)
+                logging.warning("Value error. Skipping batch. Total errors: {}".format(len(errors)))
+            except Exception as e:
+                logging.warning("Unforeseen error. Requesting stop...")
+                coord.request_stop(e)
+
+        save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
+                               global_step=step)
+        logging.info("Model saved in file: %s" % save_path)
 
 
 def main(unused_argv):
