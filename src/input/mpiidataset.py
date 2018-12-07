@@ -2,7 +2,6 @@ import h5py
 import tensorflow as tf
 from input.preprocessing import MPIIPreprocessor
 from input.base_dataset import BaseDataset
-import logging
 
 
 class MPIIGenerator:
@@ -66,7 +65,7 @@ class MPIIDataset(BaseDataset):
             {'eye': tf.TensorShape([*generator.eye_shape, 3]), 'gaze': tf.TensorShape([2])}
             )
 
-        dataset = dataset.map(self._get_tensors)
+        dataset = dataset.map(self._get_tensors, num_parallel_calls=self.num_parallel_calls)
         iterator = self._prepare_iterator(dataset)
 
         self._iterator_ready_info()

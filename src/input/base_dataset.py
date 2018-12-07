@@ -1,5 +1,5 @@
 import logging
-
+import multiprocessing
 
 class BaseDataset:
     """
@@ -10,7 +10,7 @@ class BaseDataset:
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True):
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True, num_parallel_calls=None):
         self.path_input = path_input
         self.image_size = image_size
         self.batch_size = batch_size
@@ -18,6 +18,7 @@ class BaseDataset:
         self.buffer_size = buffer_size
         self.testing = testing
         self.repeat = repeat
+        self.num_parallel_calls = num_parallel_calls if num_parallel_calls else multiprocessing.cpu_count() - 1
 
     def _prepare_iterator(self, dataset):
         if self.shuffle:

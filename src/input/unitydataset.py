@@ -2,7 +2,6 @@ import os
 import ujson
 import cv2 as cv
 import tensorflow as tf
-import logging
 
 from input.base_dataset import BaseDataset
 
@@ -53,7 +52,7 @@ class UnityDataset(BaseDataset):
     def get_iterator(self):
         file_stems = self._get_filestems_tensor()
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
-        dataset = dataset.map(self._get_tensors)
+        dataset = dataset.map(self._get_tensors, num_parallel_calls=self.num_parallel_calls)
 
         iterator = self._prepare_iterator(dataset)
         self._iterator_ready_info()
