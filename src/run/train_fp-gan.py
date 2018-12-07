@@ -33,7 +33,7 @@ tf.flags.DEFINE_integer('ngf', 32,
                         'number of gen filters in first conv layer, default: 64')
 tf.flags.DEFINE_string('X', '../data/UnityEyes',
                        'folder containing UnityEyes')
-tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye_zhang.h5',
+tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye-right_zhang.h5',
                        'h5 file with MPIIFaceGaze images')
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
@@ -96,7 +96,6 @@ def train():
             step = 0
 
         coord = tf.train.Coordinator()
-        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 
         try:
             fake_Y_pool = ImagePool(FLAGS.pool_size)
@@ -147,7 +146,6 @@ def train():
             logging.info("Model saved in file: %s" % save_path)
             # When done, ask the threads to stop.
             coord.request_stop()
-            coord.join(threads)
 
 
 def main(unused_argv):

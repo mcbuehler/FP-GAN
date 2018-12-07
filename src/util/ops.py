@@ -128,14 +128,17 @@ def uk(input, k, reuse=False, norm='instance', is_training=True, name=None,
       4D tensor
     """
     with tf.variable_scope(name, reuse=reuse):
-        input_shape = input.get_shape().as_list()
+        input_shape = input.get_shape()
 
         weights = _weights("weights",
                            shape=[3, 3, k, input_shape[3]])
 
         if not output_size:
             output_size = [dim * 2 for dim in input_shape[1:3]]
-        output_shape = [input_shape[0], output_size[0], output_size[1], k]
+        # We do not need to know the batch size at this point.
+        # But output_shape needs to be a tensor and it needs to be
+        # determined at runtime. tf.shape(...) loads the dimension at run time.
+        output_shape = tf.stack([tf.shape(input)[0], output_size[0], output_size[1], k], axis=0)
         fsconv = tf.nn.conv2d_transpose(input, weights,
                                         output_shape=output_shape,
                                         strides=[1, 2, 2, 1], padding='SAME')

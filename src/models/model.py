@@ -5,6 +5,7 @@ import util.ops as ops
 import util.utils as utils
 from models.generator import Generator
 from models.discriminator import Discriminator
+from input.dataset_manager import DatasetManager
 
 REAL_LABEL = 0.9
 
@@ -76,16 +77,22 @@ class CycleGAN:
                                      shape=[batch_size, image_size[0],
                                             image_size[1], 3])
         if self.X_train_file != '' and self.Y_train_file != '':
-            # Only initialise data sources if we are not doing inference
-            self.X_reader = UnityReader(self.X_train_file, name='X',
-                                        image_size=self.image_size,
-                                        batch_size=self.batch_size,
-                                        tf_session=self.tf_session)
-
-            self.Y_reader = MPIIGazeReader(self.Y_train_file, name='Y',
-                                           image_size=self.image_size,
-                                           batch_size=self.batch_size,
-                                           tf_session=self.tf_session)
+            self.X_iterator = DatasetManager.get_dataset_iterator_for_path(
+                self.X_train_file,
+                image_size,
+                batch_size,
+                shuffle=True,
+                repeat=True,
+                testing=False
+            )
+            self.Y_iterator = DatasetManager.get_dataset_iterator_for_path(
+                self.Y_train_file,
+                image_size,
+                batch_size,
+                shuffle=True,
+                repeat=True,
+                testing=False
+            )
 
     def model(self, fake_input=False):
         if fake_input:
@@ -93,8 +100,11 @@ class CycleGAN:
             x = tf.placeholder(tf.float32, shape)
             y = tf.placeholder(tf.float32, shape)
         else:
-            x = self.X_reader.feed()
-            y = self.Y_reader.feed()
+            X_input_batch = self.X_iterator.get_next()
+            x = X_input_batch['eye']
+
+            Y_input_batch = self.Y_iterator.get_next()
+            y = Y_input_batch['eye']
 
         # why don't we feed G(x) / F(y) here?
         cycle_loss = self.cycle_consistency_loss(self.G, self.F, x, y)
