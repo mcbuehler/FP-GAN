@@ -195,7 +195,7 @@ def train():
                         loss_value)
                     )
 
-                if step > 0 and step % 5000 == 0:
+                if step > 0 and step % 1000 == 0:
                     validation_unity.perform_validation_step(sess,
                                                              gazenet,
                                                              step,
