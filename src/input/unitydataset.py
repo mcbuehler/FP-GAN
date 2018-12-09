@@ -1,6 +1,7 @@
 import os
 import ujson
 import cv2 as cv
+import re
 import tensorflow as tf
 
 from input.base_dataset import BaseDataset
@@ -44,6 +45,9 @@ class UnityDataset(BaseDataset):
 
     def _get_filestems_tensor(self):
         file_stems = listdir(self.path_input, postfix=".jpg", return_postfix=False)
+        # If we are dealing with refined images, we migth have a postfix "_clean"
+        # But we are only interested in the image ids.
+        file_stems = list(set([re.sub(r'[^0-9]+', '', f) for f in file_stems]))
         self.N = len(file_stems)
         file_stems = tf.constant(file_stems, dtype=tf.string,
                                  name="file_stems")
@@ -77,7 +81,7 @@ class UnityDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    path_input = '../data/UnityEyesTest/'
+    path_input = '../data/refined_Unity2MPII/'
 
     dataset = UnityDataset(path_input, batch_size=10, image_size=(72, 120))
     iterator = dataset.get_iterator()
@@ -89,5 +93,6 @@ if __name__ == "__main__":
             try:
                 next_element = iterator.get_next()
                 print(sess.run(next_element['clean_eye']).shape)
+                exit()
             except Exception as e:
                 print("Value Error. Skipping.")

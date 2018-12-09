@@ -3,6 +3,8 @@ import tensorflow as tf
 import util.ops as ops
 import util.gaze as gaze
 import util.utils as utils
+from util.enum_classes import Mode
+
 
 """
 Original architecture:
@@ -34,8 +36,7 @@ class BaseGazeNet:
                  learning_rate=2e-4,
                  beta1=0.9,
                  beta2=0.999,
-                 Optimiser=tf.train.AdamOptimizer,
-                 tf_session=None
+                 Optimiser=tf.train.AdamOptimizer
                  ):
         """
         Args:
@@ -62,7 +63,6 @@ class BaseGazeNet:
         self.beta1 = beta1
         self.beta2 = beta2
         self.Optimiser = Optimiser
-        self.tf_session = tf_session
 
     def forward(self, input, mode, is_training=True):
         """
@@ -159,3 +159,6 @@ class BaseGazeNet:
                 [optimiser]):
             return tf.no_op(name='optimisers')
 
+    def sample(self, input):
+        out = self.forward(input, mode=Mode.SAMPLE)
+        return out

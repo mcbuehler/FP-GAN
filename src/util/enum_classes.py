@@ -9,8 +9,11 @@ class Mode:
     VALIDATION_UNITY = "val_unity"
     VALIDATION_MPII = "val_mpii"
 
-    INFERENCE_UNITY_TO_MPII = "inf_u2mpi"
-    INFERENCE_MPII_TO_UNITY = "inf_mpi2u"
+    INFERENCE_UNITY_TO_MPII = "inf_u2mpii"
+    INFERENCE_MPII_TO_UNITY = "inf_mpii2u"
+
+    TEST_M2U = "test_mpii2u"
+    SAMPLE = "sample"
 
 
 class EnvironmentVariable:

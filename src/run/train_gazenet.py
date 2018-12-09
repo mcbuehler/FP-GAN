@@ -1,8 +1,10 @@
 import logging
 import os
 import numpy as np
-from input.dataset_manager import DatasetManager
+import shutil
 
+from input.dataset_manager import DatasetManager
+from util.config_loader import Config
 import tensorflow as tf
 from datetime import datetime
 
@@ -13,35 +15,8 @@ from util.enum_classes import Mode
 
 FLAGS = tf.flags.FLAGS
 
-tf.flags.DEFINE_integer('batch_size', 128, 'batch size, default: 512')
-tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
-tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
-tf.flags.DEFINE_string('norm', 'batch',
-                       '[instance, batch] use instance norm or batch norm, default: instance')
-
-tf.flags.DEFINE_float('learning_rate', 2e-4,
-                      'initial learning rate for Adam, default: 0.0002')
-
-tf.flags.DEFINE_bool('use_regulariser', False,
-                      'regulariser')
-tf.flags.DEFINE_float('regularisation_lambda', 1e-4,
-                      'lambda for regularisation term, default: 0.1')
-tf.flags.DEFINE_float('beta1', 0.9,
-                      'momentum term of Adam, default: 0.5')
-tf.flags.DEFINE_float('beta2', 0.999,
-                      'momentum term of Adam, default: 0.5')
-tf.flags.DEFINE_string('path_train', '../data/UnityEyesTrain',
-                       'folder containing UnityEyes')
-tf.flags.DEFINE_string('path_validation_unity', '../data/UnityEyesVal',
-                       'folder containing UnityEyes')
-tf.flags.DEFINE_string('path_validation_mpii', '../data/MPIIFaceGaze/single-eye-right_zhang.h5',
-                       'file containing MPIIGaze. We only use eyes from one side.')
-tf.flags.DEFINE_string('load_model', None,
-                       'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
-tf.flags.DEFINE_integer('n_steps', 100000,
-                        'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
-tf.flags.DEFINE_string('data_format', 'NHWC',
-                       'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
+tf.flags.DEFINE_string('config', None, 'input configuration')
+tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
 
 
 def get_loss(iterator, gazenet, mode, regulariser=None, is_training=True):
@@ -101,13 +76,31 @@ class Validation:
 
 
 def train():
+    # Load the config variables
+    cfg = Config(FLAGS.config, FLAGS.section)
+    # Variables used for both directions
+    batch_size = cfg.get('batch_size_inference')
+    image_size = [cfg.get('image_height'),
+                  cfg.get('image_width')]
+    checkpoints_dir = cfg.get('checkpoint_folder')
+    model_name = cfg.get('model_name')
+    norm = cfg.get('norm')
+    learning_rate = cfg.get('learning_rate')
+    beta1 = cfg.get('beta1')
+    beta2 = cfg.get('beta2')
+    path_train = cfg.get('path_train')
+    n_steps = cfg.get('n_steps')
+    path_validation_unity = cfg.get('path_validation_unity')
+    path_validation_mpii = cfg.get('path_validation_mpii')
+    # Indicates whether we are loading an existing model
+    # or train a new one. Will be set to true below if we load an existing model.
+    load_model = checkpoints_dir != ""
+
     checkpoint_dir_name = "checkpoints_gazenet"
-    if FLAGS.load_model is not None:
-        checkpoints_dir = "../"+checkpoint_dir_name+"/" + FLAGS.load_model.lstrip(
-            checkpoint_dir_name+"/")
-    else:
+    if not load_model:
+        # We are not loading a saved model
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
-        checkpoints_dir = "../"+checkpoint_dir_name+"/{}".format(current_time)
+        checkpoints_dir = "../"+checkpoint_dir_name+"/{}_{}".format(current_time, model_name)
     try:
         os.makedirs(checkpoints_dir)
     except os.error:
@@ -115,30 +108,26 @@ def train():
 
     graph = tf.Graph()
 
-    # make sure to use image_height first
-    image_size = (FLAGS.image_height, FLAGS.image_width)
-
     with tf.Session(graph=graph) as sess:
         with graph.as_default():
             gazenet = GazeNet(
-                batch_size=FLAGS.batch_size,
+                batch_size=batch_size,
                 image_size=image_size,
-                norm=FLAGS.norm,
-                learning_rate=FLAGS.learning_rate,
-                beta1=FLAGS.beta1,
-                beta2=FLAGS.beta2,
-                tf_session=sess,
-                name="gazenet"
+                norm=norm,
+                learning_rate=learning_rate,
+                beta1=beta1,
+                beta2=beta2,
+                name=model_name
             )
 
             # Prepare training
-            if FLAGS.use_regulariser:
+            if cfg.get('use_regulariser'):
                 logging.info("Using a l2 regulariser")
-                regulariser = tf.contrib.layers.l2_regularizer(scale=FLAGS.regularisation_lambda)
+                regulariser = tf.contrib.layers.l2_regularizer(scale=cfg.get('regularisation_lambda'))
             else:
                 regulariser = None
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
-                FLAGS.path_train, image_size, FLAGS.batch_size,
+                path_train, image_size, batch_size,
                 shuffle=True, repeat=True, testing=False
             )
             loss_train = get_loss(train_iterator, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser, is_training=True)
@@ -147,15 +136,15 @@ def train():
             # Validation graphs
             validation_unity = Validation(
                 Mode.VALIDATION_UNITY,
-                FLAGS.path_validation_unity,
+                path_validation_unity,
                 image_size,
-                FLAGS.batch_size
+                batch_size
             )
             validation_mpii = Validation(
                 Mode.VALIDATION_MPII,
-                FLAGS.path_validation_mpii,
+                path_validation_mpii,
                 image_size,
-                FLAGS.batch_size
+                batch_size
             )
 
             # Summaries and saver
@@ -163,21 +152,22 @@ def train():
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
             saver = tf.train.Saver()
 
-        if FLAGS.load_model is not None:
+        if load_model:
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
             restore = tf.train.import_meta_graph(meta_graph_path)
             restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
             step = int(meta_graph_path.split("-")[2].split(".")[0])
         else:
-            write_parameter_summaries(gazenet, os.path.join(checkpoints_dir, "config.json"))
+            # We copy config file
+            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}_config.init".format(model_name)))
             sess.run(tf.global_variables_initializer())
             step = 0
 
         coord = tf.train.Coordinator()
 
         try:
-            while step < FLAGS.n_steps and not coord.should_stop():
+            while step < n_steps and not coord.should_stop():
                 # Perform a training step
                 _, loss_value, summary = (
                     sess.run(
@@ -209,7 +199,6 @@ def train():
                                            checkpoints_dir + "/model.ckpt",
                                            global_step=step)
                     logging.info("Model saved in file: %s" % save_path)
-
                 step += 1
         except KeyboardInterrupt:
             logging.info('Interrupted')

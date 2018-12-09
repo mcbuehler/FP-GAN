@@ -107,7 +107,5 @@ scripts
 # test python files
 test_*
 
-config
-
 checkpoints_*
 *.jpg
