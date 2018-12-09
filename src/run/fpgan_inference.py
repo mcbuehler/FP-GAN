@@ -11,35 +11,22 @@ import tensorflow as tf
 from input.dataset_manager import DatasetManager
 from util.files import save_images, create_folder_if_not_exists, copy_json
 from util.utils import convert2int
-
+from util.config_loader import Config
 
 FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_integer('batch_size', 128, 'batch size, default: 512')
-tf.flags.DEFINE_string('model', '', 'model path (.pb)')
-tf.flags.DEFINE_string('input', '', 'input path (folder containing images)')
+tf.flags.DEFINE_string('config', None, 'input configuration')
+tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
 
-tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
-tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
+if FLAGS.config is None:
+    print("Please provide config file (--config PATH).")
+    exit()
 
-batch_size = FLAGS.batch_size
 
-# Process input path
-path_elements = FLAGS.input.split("/")
-# If the input directory has a trailing slash we wouldn't extract the correct term
-input_basename = path_elements[-1] if len(path_elements[-1]) else path_elements[-2]
-
-# Process output path
-image_size = [FLAGS.image_height, FLAGS.image_width]
-model_path = os.path.dirname(FLAGS.model)
-output_subfolder = "refined_{}_{}".format(
-    input_basename,
-    os.path.basename(FLAGS.model)[:-3])
-output_folder = os.path.join(model_path, output_subfolder)
-create_folder_if_not_exists(output_folder)
-
-logging.info("Reading images from '{}'".format(FLAGS.input))
-logging.info("Loading model from '{}'".format(model_path))
-logging.info("Writing images and json files to '{}'".format(output_folder))
+def config_info(path_in, model_path, output_folder, batch_size):
+    logging.info("Reading images from '{}'".format(path_in))
+    logging.info("Loading model from '{}'".format(model_path))
+    logging.info("Writing images and json files to '{}'".format(output_folder))
+    logging.info("Batch size: {}".format(batch_size))
 
 
 def get_encoded_tensor(images):
@@ -49,25 +36,29 @@ def get_encoded_tensor(images):
     return encoded_jpg
 
 
+def load_model(path_model, graph):
+    with tf.gfile.FastGFile(path_model, 'rb') as model_file:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(model_file.read())
 
-def inference():
+        tf.import_graph_def(graph_def, name='output')
+
+        input_tensor = graph.get_tensor_by_name('output/input_image:0')
+        output_tensor = graph.get_tensor_by_name('output/output_image:0')
+    return input_tensor, output_tensor
+
+
+def inference(path_model, path_in, image_size, batch_size, output_folder):
     graph = tf.Graph()
 
     with graph.as_default():
 
-        with tf.gfile.FastGFile(FLAGS.model, 'rb') as model_file:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(model_file.read())
-
-            tf.import_graph_def(graph_def, name='output')
-
-            input_tensor = graph.get_tensor_by_name('output/input_image:0')
-            output_tensor = graph.get_tensor_by_name('output/output_image:0')
+        input_tensor, output_tensor = load_model(path_model, graph)
 
         with tf.Session(graph=graph) as sess:
             dm = DatasetManager()
             iterator = dm.get_dataset_iterator_for_path(
-                FLAGS.input,
+                path_in,
                 image_size=image_size,
                 batch_size=batch_size,
                 shuffle=False,
@@ -85,25 +76,23 @@ def inference():
                     eyes = entry['eye']
                     eyes_clean = entry['clean_eye']
                     ids = entry['id']
-                    batch_eyes, batch_ids, batch_eyes_clean = sess.run([eyes, ids, eyes_clean])
+                    batch_ids, batch_eyes_clean = sess.run([ids, eyes_clean])
+
                     # Ids are returned as byte
                     image_ids = [id.decode('utf-8') for id in batch_ids]
 
                     generated = sess.run(output_tensor, feed_dict={
-                                    input_tensor: batch_eyes
+                                    input_tensor: batch_eyes_clean
                                 })
+
                     save_images(generated, output_folder, image_ids)
 
                     # get clean images
 
-                    images_clean = sess.run(get_encoded_tensor(eyes_clean))
+                    images_clean = sess.run(get_encoded_tensor(batch_eyes_clean))
                     save_images(images_clean, output_folder, image_ids, suffix="_clean")
 
-                    images_clean = sess.run(get_encoded_tensor(eyes))
-                    save_images(images_clean, output_folder, image_ids, suffix="_original")
-
-
-                    copy_json(image_ids, FLAGS.input, output_folder)
+                    copy_json(image_ids, path_in, output_folder)
                     counter += len(image_ids)
 
                     logging.info("Processed {} images".format(counter))
@@ -115,7 +104,21 @@ def inference():
 
 
 def main(unused_argv):
-    inference()
+    # Load the config variables
+    cfg_section = FLAGS.section
+    cfg = Config(FLAGS.config)
+    batch_size = cfg.get(cfg_section, 'batch_size')
+    model_path = cfg.get(cfg_section, "path_model_u2m")
+    image_size = [cfg.get(cfg_section, 'image_height'),
+                  cfg.get(cfg_section, 'image_width')]
+    output_folder = cfg.get(cfg_section, 'path_refined_u2m')
+    path_in = cfg.get(cfg_section, "S")
+    # Info for the user
+    config_info(path_in, model_path, output_folder, batch_size)
+
+    create_folder_if_not_exists(output_folder)
+    # Run inference
+    inference(model_path, path_in, image_size, batch_size, output_folder)
 
 
 if __name__ == '__main__':
