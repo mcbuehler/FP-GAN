@@ -17,8 +17,8 @@ class UnityDataset(BaseDataset):
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True):
-        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, testing, repeat)
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True, drop_remainder=False):
+        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, testing, repeat, drop_remainder=drop_remainder)
 
         self.unity_preprocessor = UnityPreprocessor(testing=testing,
                                                     eye_image_shape=self.image_size)

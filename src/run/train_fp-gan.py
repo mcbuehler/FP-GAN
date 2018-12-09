@@ -29,7 +29,7 @@ tf.flags.DEFINE_float('beta1', 0.5,
                       'momentum term of Adam, default: 0.5')
 tf.flags.DEFINE_float('pool_size', 50,
                       'size of image buffer that stores previously generated images, default: 50')
-tf.flags.DEFINE_integer('ngf', 32,
+tf.flags.DEFINE_integer('ngf', 64,
                         'number of gen filters in first conv layer, default: 64')
 tf.flags.DEFINE_string('X', '../data/UnityEyes',
                        'folder containing UnityEyes')
@@ -37,7 +37,7 @@ tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye-right_zhang.h5',
                        'h5 file with MPIIFaceGaze images')
 tf.flags.DEFINE_string('load_model', None,
                        'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
-tf.flags.DEFINE_integer('n_steps', 24000,
+tf.flags.DEFINE_integer('n_steps', 150000,
                         'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
 tf.flags.DEFINE_string('data_format', 'NHWC',
                        'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!

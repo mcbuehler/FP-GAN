@@ -4,7 +4,6 @@ python fpgan_inference.py --input ../data/UnityEyesTest/
         --model ../checkpoints/20181123-1412/Unity2MPII.pb
 """
 import logging
-import os
 
 import tensorflow as tf
 
@@ -63,7 +62,8 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
                 batch_size=batch_size,
                 shuffle=False,
                 repeat=False,
-                testing=True
+                testing=True,
+                drop_remainder=True
             )
 
             coord = tf.train.Coordinator()
@@ -73,9 +73,9 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
             while not coord.should_stop():
                 try:
                     entry = iterator.get_next()
-                    eyes = entry['eye']
                     eyes_clean = entry['clean_eye']
                     ids = entry['id']
+
                     batch_ids, batch_eyes_clean = sess.run([ids, eyes_clean])
 
                     # Ids are returned as byte
@@ -105,14 +105,13 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
 
 def main(unused_argv):
     # Load the config variables
-    cfg_section = FLAGS.section
-    cfg = Config(FLAGS.config)
-    batch_size = cfg.get(cfg_section, 'batch_size')
-    model_path = cfg.get(cfg_section, "path_model_u2m")
-    image_size = [cfg.get(cfg_section, 'image_height'),
-                  cfg.get(cfg_section, 'image_width')]
-    output_folder = cfg.get(cfg_section, 'path_refined_u2m')
-    path_in = cfg.get(cfg_section, "S")
+    cfg = Config(FLAGS.config, FLAGS.section)
+    batch_size = cfg.get('batch_size')
+    model_path = cfg.get("path_model_u2m")
+    image_size = [cfg.get('image_height'),
+                  cfg.get('image_width')]
+    output_folder = cfg.get('path_refined_u2m')
+    path_in = cfg.get("S")
     # Info for the user
     config_info(path_in, model_path, output_folder, batch_size)
 
