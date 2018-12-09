@@ -15,6 +15,8 @@ from util.config_loader import Config
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('config', None, 'input configuration')
 tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
+tf.flags.DEFINE_boolean('M2U', True, 'Direction of inference (M2U or U2M)')
+
 
 if FLAGS.config is None:
     print("Please provide config file (--config PATH).")
@@ -106,12 +108,18 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
 def main(unused_argv):
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
+    # Variables used for both directions
     batch_size = cfg.get('batch_size')
-    model_path = cfg.get("path_model_u2m")
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
-    output_folder = cfg.get('path_refined_u2m')
-    path_in = cfg.get("S")
+    # Variables dependent on direction
+    if FLAGS.M2U:
+        path_in = cfg.get("S")
+        model_path = cfg.get("path_model_u2m")
+        output_folder = cfg.get('path_refined_u2m')
+    else:
+        logging.warning("Not implemented. Exiting.")
+        exit(0)
     # Info for the user
     config_info(path_in, model_path, output_folder, batch_size)
 
