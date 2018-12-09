@@ -109,7 +109,7 @@ def main(unused_argv):
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
     # Variables used for both directions
-    batch_size = cfg.get('batch_size')
+    batch_size = cfg.get('batch_size_inference')
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
     # Variables dependent on direction

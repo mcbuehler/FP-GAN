@@ -62,7 +62,7 @@ def main(unused_argv):
         checkpoint_dir=cfg.get("checkpoint_folder"),
         image_size=[cfg.get('image_height'),
                   cfg.get('image_width')],
-        batch_size=cfg.get("batch_size"),
+        batch_size=cfg.get("batch_size_inference"),
         norm=cfg.get("norm"),
         ngf=cfg.get("ngf")
     )
