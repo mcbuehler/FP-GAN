@@ -26,14 +26,15 @@ def get_loss(iterator, gazenet, mode, regulariser=None, is_training=True):
 
 
 class Validation:
-    def __init__(self, mode, path, image_size, batch_size):
+    def __init__(self, mode, path, image_size, batch_size, dataset_class):
         self.iterator = DatasetManager.get_dataset_iterator_for_path(
             path,
             image_size,
             batch_size,
             shuffle=False,
             repeat=True,
-            testing=True)
+            testing=True,
+            dataset_class=dataset_class)
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
 
@@ -92,6 +93,9 @@ def train():
     n_steps = cfg.get('n_steps')
     path_validation_unity = cfg.get('path_validation_unity')
     path_validation_mpii = cfg.get('path_validation_mpii')
+    dataset_class_train = cfg.get('dataset_class_train')
+    dataset_class_validation_unity = cfg.get('dataset_class_validation_unity')
+    dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir != ""
@@ -128,7 +132,8 @@ def train():
                 regulariser = None
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
-                shuffle=True, repeat=True, testing=False
+                shuffle=True, repeat=True, testing=False,
+                dataset_class=dataset_class_train
             )
             loss_train = get_loss(train_iterator, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser, is_training=True)
             optimizers = gazenet.optimize(loss_train)
@@ -138,13 +143,15 @@ def train():
                 Mode.VALIDATION_UNITY,
                 path_validation_unity,
                 image_size,
-                batch_size
+                batch_size,
+                dataset_class_validation_unity
             )
             validation_mpii = Validation(
                 Mode.VALIDATION_MPII,
                 path_validation_mpii,
                 image_size,
-                batch_size
+                batch_size,
+                dataset_class_validation_mpii
             )
 
             # Summaries and saver
