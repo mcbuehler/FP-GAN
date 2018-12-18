@@ -1,7 +1,10 @@
 """Translate an image to another image
 An example of command-line usage is:
-python fpgan_inference.py --input ../data/UnityEyesTest/
-        --model ../checkpoints/20181123-1412/Unity2MPII.pb
+CUDA_VISIBLE_DEVICES=0 python run/fpgan_inference.py
+    --config ../config/fpgan_basic.ini
+    --section 20181123-1412
+    --U2M True
+
 """
 import logging
 
@@ -15,7 +18,7 @@ from util.config_loader import Config
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('config', None, 'input configuration')
 tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-tf.flags.DEFINE_boolean('M2U', True, 'Direction of inference (M2U or U2M)')
+tf.flags.DEFINE_boolean('U2M', True, 'Direction of inference (M2U or U2M)')
 
 
 if FLAGS.config is None:
@@ -65,7 +68,8 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
                 shuffle=False,
                 repeat=False,
                 testing=True,
-                drop_remainder=True
+                drop_remainder=True,
+                dataset_class="unity"
             )
 
             coord = tf.train.Coordinator()
@@ -113,7 +117,7 @@ def main(unused_argv):
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
     # Variables dependent on direction
-    if FLAGS.M2U:
+    if FLAGS.U2M:
         path_in = cfg.get("S")
         model_path = cfg.get("path_model_u2m")
         output_folder = cfg.get('path_refined_u2m')
