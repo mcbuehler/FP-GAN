@@ -135,7 +135,6 @@ class UnityPreprocessor(Preprocessor):
         if testing:
             self._short_name += ':test'
 
-
     def preprocess(self, full_image, json_data):
         """Use annotations to segment eyes and calculate gaze direction."""
         result_dict = dict()

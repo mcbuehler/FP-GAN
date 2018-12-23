@@ -75,7 +75,6 @@ def inference(path_model, path_in, image_size, batch_size, output_folder):
             coord = tf.train.Coordinator()
 
             counter = 0
-            # TODO: move get_next outside the while loop.
             entry = iterator.get_next()
 
             while not coord.should_stop():
