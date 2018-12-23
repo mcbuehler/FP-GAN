@@ -61,7 +61,7 @@ class Validation:
         train_writer.add_summary(summary, step)
         train_writer.flush()
 
-    def perform_validation_step(self, sess, model, step, train_writer):
+    def perform_validation_step(self, sess, step, train_writer):
 
         # We only do this for collecting statistics
         logging.info("Collecting validation statistics...")
@@ -158,28 +158,30 @@ def train():
                                   regulariser=regulariser, is_training=True)
             optimizers = gazenet.optimize(loss_train)
 
-            # Validation graphs
-            validation_unity = Validation(
-                gazenet,
-                Mode.VALIDATION_UNITY,
-                path_validation_unity,
-                image_size,
-                batch_size,
-                dataset_class_validation_unity
-            )
-            validation_mpii = Validation(
-                gazenet,
-                Mode.VALIDATION_MPII,
-                path_validation_mpii,
-                image_size,
-                batch_size,
-                dataset_class_validation_mpii
-            )
-
             # Summaries and saver
             summary_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
             saver = tf.train.Saver()
+
+        # Validation graphs
+        # We do this after tf.summary_merge_all because we don't want to create
+        # summaries for every step
+        validation_unity = Validation(
+            gazenet,
+            Mode.VALIDATION_UNITY,
+            path_validation_unity,
+            image_size,
+            batch_size,
+            dataset_class_validation_unity
+        )
+        validation_mpii = Validation(
+            gazenet,
+            Mode.VALIDATION_MPII,
+            path_validation_mpii,
+            image_size,
+            batch_size,
+            dataset_class_validation_mpii
+        )
 
         if load_model:
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
@@ -216,11 +218,9 @@ def train():
 
                 if step > 0 and step % 1000 == 0:
                     validation_unity.perform_validation_step(sess,
-                                                             gazenet,
                                                              step,
                                                              train_writer)
                     validation_mpii.perform_validation_step(sess,
-                                                             gazenet,
                                                              step,
                                                              train_writer)
 
