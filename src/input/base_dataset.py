@@ -18,7 +18,7 @@ class BaseDataset:
         self.buffer_size = buffer_size
         self.testing = testing
         self.repeat = repeat
-        self.num_parallel_calls = num_parallel_calls if num_parallel_calls else multiprocessing.cpu_count() - 1
+        self.num_parallel_calls = num_parallel_calls if num_parallel_calls is not None else multiprocessing.cpu_count() - 1
         self.drop_remainder = drop_remainder
 
     def _prepare_iterator(self, dataset):

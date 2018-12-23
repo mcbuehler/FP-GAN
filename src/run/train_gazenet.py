@@ -9,7 +9,6 @@ import tensorflow as tf
 from datetime import datetime
 
 from models.gazenet import GazeNet
-from util.log import write_parameter_summaries
 from util.enum_classes import Mode
 
 
@@ -26,7 +25,7 @@ def get_loss(iterator, gazenet, mode, regulariser=None, is_training=True):
 
 
 class Validation:
-    def __init__(self, mode, path, image_size, batch_size, dataset_class):
+    def __init__(self, model, mode, path, image_size, batch_size, dataset_class):
         self.iterator = DatasetManager.get_dataset_iterator_for_path(
             path,
             image_size,
@@ -37,10 +36,13 @@ class Validation:
             dataset_class=dataset_class)
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
+        self.model = model
+        _, self.loss = self.get_loss(get_summary=True)
+        self.summary_op = tf.summary.merge_all()
 
-    def get_loss(self, model):
-        outputs, loss_validation = model.get_loss(
-            self.iterator, is_training=False, mode=self.mode)
+    def get_loss(self, get_summary):
+        outputs, loss_validation = self.model.get_loss(
+            self.iterator, is_training=False, mode=self.mode, get_summary=get_summary)
         return outputs, loss_validation
 
     def _log_result(self, loss_mean, loss_std, error_angular, step, train_writer):
@@ -50,20 +52,29 @@ class Validation:
         logging.info(
             '  loss {}     : {} (std: {:.4f}, angular: {:.4f})'.format(self.mode, loss_mean,
                                                       loss_std, error_angular))
-
         summary = tf.Summary()
         summary.value.add(tag="{}/gaze_mse".format(self.mode),
                           simple_value=loss_mean)
         summary.value.add(tag="{}/angular_error".format(self.mode),
                           simple_value=error_angular)
+
         train_writer.add_summary(summary, step)
         train_writer.flush()
 
     def perform_validation_step(self, sess, model, step, train_writer):
+
+        # We only do this for collecting statistics
+        logging.info("Collecting validation statistics...")
+        summary = sess.run(self.summary_op)
+        train_writer.add_summary(summary, step)
+        train_writer.flush()
+
         logging.info("Preparing validation...")
-        outputs, loss = self.get_loss(model)
+        # Now we calculate the actual error
+        outputs, loss = self.get_loss(get_summary=False)
         logging.info("Running {} batches...".format(self.n_batches_per_epoch))
         results = [sess.run([outputs['error_angular'], loss]) for i in range(self.n_batches_per_epoch)]
+
         # loss_values is a list [[angular, mse], [angular, mse],...]
         loss_values = [r[1] for r in results]
         angular_values = [r[0] for r in results]
@@ -96,6 +107,7 @@ def train():
     dataset_class_train = cfg.get('dataset_class_train')
     dataset_class_validation_unity = cfg.get('dataset_class_validation_unity')
     dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
+    do_augment = cfg.get('augmentation')
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir != ""
@@ -110,9 +122,15 @@ def train():
     except os.error:
         pass
 
+    logging.info("Checkpoint directory: {}".format(checkpoints_dir))
+
     graph = tf.Graph()
 
-    with tf.Session(graph=graph) as sess:
+    # Solve memory issues
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+
+    with tf.Session(graph=graph, config=config) as sess:
         with graph.as_default():
             gazenet = GazeNet(
                 batch_size=batch_size,
@@ -132,14 +150,17 @@ def train():
                 regulariser = None
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
-                shuffle=True, repeat=True, testing=False,
+                shuffle=True, repeat=True, testing=do_augment,
                 dataset_class=dataset_class_train
             )
-            loss_train = get_loss(train_iterator, gazenet, mode=Mode.TRAIN_UNITY, regulariser=regulariser, is_training=True)
+            loss_train = get_loss(train_iterator, gazenet,
+                                  mode=Mode.TRAIN_UNITY,
+                                  regulariser=regulariser, is_training=True)
             optimizers = gazenet.optimize(loss_train)
 
             # Validation graphs
             validation_unity = Validation(
+                gazenet,
                 Mode.VALIDATION_UNITY,
                 path_validation_unity,
                 image_size,
@@ -147,6 +168,7 @@ def train():
                 dataset_class_validation_unity
             )
             validation_mpii = Validation(
+                gazenet,
                 Mode.VALIDATION_MPII,
                 path_validation_mpii,
                 image_size,
@@ -167,7 +189,7 @@ def train():
             step = int(meta_graph_path.split("-")[2].split(".")[0])
         else:
             # We copy config file
-            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}_config.init".format(model_name)))
+            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}_config.ini".format(model_name)))
             sess.run(tf.global_variables_initializer())
             step = 0
 

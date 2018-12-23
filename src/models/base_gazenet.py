@@ -77,7 +77,7 @@ class BaseGazeNet:
     def create_name(self, name, prefix):
         return "{}/{}".format(prefix, name)
 
-    def get_loss(self, iterator, mode, is_training=True, regulariser=None):
+    def get_loss(self, iterator, mode, is_training=True, regulariser=None, get_summary=True):
         # # summary
         summary_pref = mode
 
@@ -103,7 +103,7 @@ class BaseGazeNet:
             # we do not regularise
             loss = loss_gaze
 
-        if is_training:
+        if get_summary:
             # Create summaries
             tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
 
