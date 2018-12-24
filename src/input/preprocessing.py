@@ -231,7 +231,7 @@ class UnityPreprocessor(Preprocessor):
         landmarks = landmarks[:, :2]  # We only need x, y
         result_dict['landmarks'] = landmarks.astype(np.float32)
 
-        return_keys = ['clean_eye', 'eye', 'gaze']
+        return_keys = ['clean_eye', 'eye', 'gaze', 'landmarks', 'head']
         return [result_dict[k] for k in return_keys]
 
 

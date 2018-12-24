@@ -6,6 +6,7 @@ CUDA_VISIBLE_DEVICES=0 python run/fpgan_inference.py
     --U2M True
 
 """
+import json
 import logging
 
 import os
@@ -15,6 +16,8 @@ from input.dataset_manager import DatasetManager
 from util.utils import convert2int
 from util.config_loader import Config
 from shutil import copyfile
+from util.files import create_folder_if_not_exists
+
 
 FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('config', None, 'input configuration')
@@ -34,6 +37,7 @@ class GeneratorInference:
         self.output_folder = output_folder
         self.batch_size = batch_size
         self.image_size = image_size
+        create_folder_if_not_exists(self.output_folder)
 
     def config_info(self):
         logging.info("Reading images from '{}'".format(self.path_in))
@@ -67,12 +71,18 @@ class GeneratorInference:
             with open(filepath, 'wb') as f:
                 f.write(tensor_generated[i])
 
-    def copy_json(self, image_ids):
-        for image_id in image_ids:
-            filename = "{}.json".format(image_id)
-            path_from = os.path.join(self.path_in, filename)
+    def save_annotations(self, entry_evaluated):
+        for i in range(self.batch_size):
+            id_decoded = entry_evaluated['id'][i].decode('utf-8')
+            filename = "{}.json".format(id_decoded)
             path_to = os.path.join(self.output_folder, filename)
-            copyfile(path_from, path_to)
+            out_dict = {
+                'gaze': entry_evaluated['gaze'][i].tolist(),
+                'head': entry_evaluated['head'][i].tolist(),
+                'landmarks': entry_evaluated['landmarks'][i].tolist()
+            }
+            with open(path_to, 'w') as f:
+                json.dump(out_dict, f)
 
     def run(self):
         self.config_info()
@@ -103,10 +113,13 @@ class GeneratorInference:
 
                 while not coord.should_stop():
                     try:
-                        eyes_clean = entry['clean_eye']
-                        ids = entry['id']
+                        # eyes_clean = entry['clean_eye']
+                        # ids = entry['id']
 
-                        batch_ids, batch_eyes_clean = sess.run([ids, eyes_clean])
+                        entry_evaluated = sess.run(entry)
+
+                        batch_ids = entry_evaluated['id']
+                        batch_eyes_clean = entry_evaluated['clean_eye']
 
                         # Ids are returned as byte
                         image_ids = [id.decode('utf-8') for id in batch_ids]
@@ -115,16 +128,18 @@ class GeneratorInference:
                                         input_tensor: batch_eyes_clean
                                     })
 
+                        # We save the translated images
                         self.save_images(generated, image_ids)
 
-                        # get clean images
+                        # Save the clean images
                         encoded_tensor = self.get_encoded_tensor(batch_eyes_clean)
                         images_clean = sess.run(encoded_tensor)
                         self.save_images(images_clean, image_ids, suffix="_clean")
 
-                        self.copy_json(image_ids)
-                        counter += len(image_ids)
+                        # Save the annotations
+                        self.save_annotations(entry_evaluated)
 
+                        counter += len(image_ids)
                         logging.info("Processed {} images".format(counter))
                     except tf.errors.OutOfRangeError as e:
                         coord.request_stop()

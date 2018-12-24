@@ -85,7 +85,12 @@ class MPIIDataset(BaseDataset):
         # The output tensor does not need a shape at this point.
         image_shape = (*self.image_size, 3)
         eye_preprocessed.set_shape(image_shape)
-        return {'eye': eye_preprocessed, 'gaze': entry['gaze']}
+        return {
+            'eye': eye_preprocessed,
+            'gaze': entry['gaze'],
+            'landmarks': entry['landmarks'],
+            'head': entry['head']
+        }
 
 
 if __name__ == "__main__":

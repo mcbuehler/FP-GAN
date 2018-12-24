@@ -64,12 +64,13 @@ class UnityDataset(BaseDataset):
         return iterator
 
     def _get_tensors(self, file_stem):
-        clean_eye, eye, gaze = tf.py_func(lambda file_stem:
+        clean_eye, eye, gaze, landmarks, head = tf.py_func(lambda file_stem:
                                           self._read_and_preprocess(
                                               file_stem, self.path_input,
                                               self.unity_preprocessor),
                                           [file_stem],
                                           Tout=[tf.float32, tf.float32,
+                                                tf.float32, tf.float32,
                                                 tf.float32]
                                           )
         # We need to set shapes because we need to know them when we
@@ -78,7 +79,14 @@ class UnityDataset(BaseDataset):
         image_shape = (*self.image_size, 3)
         clean_eye.set_shape(image_shape)
         eye.set_shape(image_shape)
-        return {'id': file_stem, 'clean_eye': clean_eye, 'eye': eye, 'gaze': gaze}
+        return {
+            'id': file_stem,
+            'clean_eye': clean_eye,
+            'eye': eye,
+            'gaze': gaze,
+            'landmarks': landmarks,
+            'head': head
+        }
 
 
 if __name__ == "__main__":
