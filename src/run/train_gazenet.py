@@ -37,12 +37,10 @@ class Validation:
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
         self.model = model
-        _, self.loss = self.get_loss(get_summary=True)
-        self.summary_op = tf.summary.merge_all()
 
-    def get_loss(self, get_summary):
+    def get_loss(self, summary_key):
         outputs, loss_validation = self.model.get_loss(
-            self.iterator, is_training=False, mode=self.mode, get_summary=get_summary)
+            self.iterator, is_training=False, mode=self.mode, summary_key=summary_key)
         return outputs, loss_validation
 
     def _log_result(self, loss_mean, loss_std, error_angular, step, train_writer):
@@ -52,32 +50,35 @@ class Validation:
         logging.info(
             '  loss {}     : {} (std: {:.4f}, angular: {:.4f})'.format(self.mode, loss_mean,
                                                       loss_std, error_angular))
-        summary = tf.Summary()
-        summary.value.add(tag="{}/gaze_mse".format(self.mode),
-                          simple_value=loss_mean)
-        summary.value.add(tag="{}/angular_error".format(self.mode),
-                          simple_value=error_angular)
-
-        train_writer.add_summary(summary, step)
-        train_writer.flush()
+        # summary = tf.Summary()
+        # summary.value.add(tag="{}/gaze_mse".format(self.mode),
+        #                   simple_value=loss_mean)
+        # summary.value.add(tag="{}/angular_error".format(self.mode),
+        #                   simple_value=error_angular)
+        #
+        # train_writer.add_summary(summary, step)
+        # train_writer.flush()
 
     def perform_validation_step(self, sess, step, train_writer):
 
         # We only do this for collecting statistics
-        logging.info("Collecting validation statistics...")
-        summary = sess.run(self.summary_op)
-        train_writer.add_summary(summary, step)
-        train_writer.flush()
+        # logging.info("Collecting validation statistics...")
+        # summary = sess.run(self.summary_op)
+        # train_writer.add_summary(summary, step)
+        # train_writer.flush()
 
         logging.info("Preparing validation...")
-        # Now we calculate the actual error
-        outputs, loss = self.get_loss(get_summary=False)
+        # Now we calculate the errors
+        outputs, loss = self.get_loss(summary_key="epoch")
+        summary_op = tf.summary.merge_all(key="epoch")
         logging.info("Running {} batches...".format(self.n_batches_per_epoch))
-        results = [sess.run([outputs['error_angular'], loss]) for i in range(self.n_batches_per_epoch)]
+        results = [sess.run([outputs['error_angular'], loss, summary_op]) for i in range(2)]
+        # results = [sess.run([outputs['error_angular'], loss, summary_op]) for i in range(self.n_batches_per_epoch)]
 
         # loss_values is a list [[angular, mse], [angular, mse],...]
-        loss_values = [r[1] for r in results]
         angular_values = [r[0] for r in results]
+        loss_values = [r[1] for r in results]
+        summaries = [r[2] for r in results]
 
         loss_mean = np.mean(loss_values)
         loss_std = np.std(loss_values)

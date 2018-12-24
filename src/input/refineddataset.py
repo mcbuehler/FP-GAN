@@ -2,6 +2,8 @@ import os
 import ujson
 import cv2 as cv
 import re
+
+import numpy as np
 import tensorflow as tf
 
 from input.base_dataset import BaseDataset
@@ -83,20 +85,34 @@ class RefinedDataset(BaseDataset):
 if __name__ == "__main__":
     path_input = '../data/refined_Unity2MPII/'
 
-    dataset = RefinedDataset(path_input, batch_size=10, image_size=(72, 120))
+    dataset = RefinedDataset(path_input, batch_size=10, image_size=(72, 120),
+                             testing=True)
     iterator = dataset.get_iterator()
+    next_element = iterator.get_next()
 
     with tf.Session() as sess:
         n_batches = int(dataset.N / dataset.batch_size)
         for i in range(n_batches+3):
             print(i, "/", n_batches)
             try:
-                next_element = iterator.get_next()
-                images = sess.run(next_element['eye'])
-                import matplotlib.pyplot as plt
+                elem = sess.run(next_element)
+
                 from matplotlib.pyplot import imshow
-                imshow(images[1])
-                plt.show()
-                exit()
+                from util.gaze import draw_gaze
+                import matplotlib.pyplot as plt
+                for j in range(10):
+
+                    img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
+                    # img = elem['eye'][j]
+                    print(img)
+                    gaze = elem['gaze'][j]
+
+                    img = draw_gaze(
+                        img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
+                        gaze, length=100.0, thickness=2, color=(0, 255, 0),
+                    )
+                    imshow(img)
+                    plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
+                    plt.show()
             except Exception as e:
                 print("Value Error. Skipping.")

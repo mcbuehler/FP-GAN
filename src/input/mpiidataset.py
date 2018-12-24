@@ -2,6 +2,7 @@ import h5py
 import tensorflow as tf
 from input.preprocessing import MPIIPreprocessor
 from input.base_dataset import BaseDataset
+import numpy as np
 
 
 class MPIIGenerator:
@@ -62,7 +63,9 @@ class MPIIDataset(BaseDataset):
         dataset = tf.data.Dataset.from_generator(
             generator,
             {'eye': tf.uint8, 'gaze': tf.float32},
-            {'eye': tf.TensorShape([*generator.eye_shape, 3]), 'gaze': tf.TensorShape([2])}
+            {'eye': tf.TensorShape([*generator.eye_shape, 3]),
+             'gaze': tf.TensorShape([2])
+             }
             )
 
         dataset = dataset.map(self._get_tensors, num_parallel_calls=self.num_parallel_calls)
@@ -86,21 +89,37 @@ class MPIIDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    path_input = '../data/MPIIFaceGaze/single-eye_zhang.h5'
+    path_input = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
 
     dataset = MPIIDataset(path_input, batch_size=10, image_size=(72, 120))
     iterator = dataset.get_iterator()
+    next_element = iterator.get_next()
 
     with tf.Session() as sess:
-        import numpy as np
-        gazes = np.empty((1,2))
         # n_batches = int(dataset.N / dataset.batch_size)
         for i in range(10):
             # print(i, "/", n_batches)
 
-            next_element = iterator.get_next()
             elem = sess.run(next_element)
-            print(elem['eye'].shape)
+            print(np.max(elem["gaze"], axis=1))
+            print(np.mean(np.max(np.abs(elem["gaze"]), axis=1)))
+            print(np.mean(np.mean(np.abs(elem["gaze"]), axis=1)))
+            from matplotlib.pyplot import imshow
+            from util.gaze import draw_gaze
+
+            import matplotlib.pyplot as plt
+            for j in range(10):
+                img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
+                gaze = elem['gaze'][j]
+
+                img = draw_gaze(
+                    img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
+                    gaze, length=100.0, thickness=2, color=(0, 255, 0),
+                )
+                imshow(img)
+                plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
+                plt.show()
+
             # imshow(elem['eye'][0])
             # ply.show()
             # gazes = np.concatenate([gazes, elem['gaze']], 0)

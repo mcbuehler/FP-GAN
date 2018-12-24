@@ -101,12 +101,12 @@ def tensorflow_angular_error_from_vector(v_true, v_pred):
 
 def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0, 255)):
     """Draw gaze angle on given image with a given eye positions."""
-    image_out = image_in
-    if len(image_out.shape) == 2 or image_out.shape[2] == 1:
-        image_out = cv.cvtColor(image_out, cv.COLOR_GRAY2BGR)
+    image_out = np.ascontiguousarray(image_in, dtype=np.int32)
     dx = -length * np.sin(pitchyaw[1])
     dy = -length * np.sin(pitchyaw[0])
     cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
                    tuple(np.round([eye_pos[0] + dx, eye_pos[1] + dy]).astype(int)), color,
                    thickness, cv.LINE_AA, tipLength=0.2)
     return image_out
+
+

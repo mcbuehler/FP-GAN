@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow import GraphKeys
 
 import util.ops as ops
 import util.gaze as gaze
@@ -77,7 +78,7 @@ class BaseGazeNet:
     def create_name(self, name, prefix):
         return "{}/{}".format(prefix, name)
 
-    def get_loss(self, iterator, mode, is_training=True, regulariser=None, get_summary=True):
+    def get_loss(self, iterator, mode, is_training=True, regulariser=None, summary_key=GraphKeys.SUMMARIES):
         # # summary
         summary_pref = mode
 
@@ -103,16 +104,15 @@ class BaseGazeNet:
             # we do not regularise
             loss = loss_gaze
 
-        if get_summary:
-            # Create summaries
-            tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1)
+        # Create summaries
+        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=summary_key)
 
-            tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye)
-            tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze)
-            tf.summary.histogram(self.create_name('output/gaze', summary_pref), output)
+        tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye, collections=summary_key)
+        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze, collections=summary_key)
+        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output, collections=summary_key)
 
-            tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze)
-            tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular)
+        tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze, collections=summary_key)
+        tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular, collections=summary_key)
 
         return {'gaze': output, 'error_angular': error_angular}, loss
 

@@ -8,6 +8,7 @@ from input.base_dataset import BaseDataset
 
 from input.preprocessing import UnityPreprocessor
 from util.files import listdir
+import numpy as np
 
 
 class UnityDataset(BaseDataset):
@@ -81,18 +82,34 @@ class UnityDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    path_input = '../data/refined_Unity2MPII/'
+    path_input = '../data/UnityEyes/'
 
     dataset = UnityDataset(path_input, batch_size=10, image_size=(72, 120))
     iterator = dataset.get_iterator()
 
     with tf.Session() as sess:
         n_batches = int(dataset.N / dataset.batch_size)
-        for i in range(n_batches+3):
+        for i in range(10):
             print(i, "/", n_batches)
             try:
                 next_element = iterator.get_next()
-                print(sess.run(next_element['clean_eye']).shape)
-                exit()
+                elem = sess.run(next_element)
+                from matplotlib.pyplot import imshow
+                from util.gaze import draw_gaze
+                import matplotlib.pyplot as plt
+                for j in range(10):
+
+                    img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
+                    # img = elem['eye'][j]
+                    print(img)
+                    gaze = elem['gaze'][j]
+
+                    img = draw_gaze(
+                        img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
+                        gaze, length=100.0, thickness=2, color=(0, 255, 0),
+                    )
+                    imshow(img)
+                    plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
+                    plt.show()
             except Exception as e:
                 print("Value Error. Skipping.")
