@@ -1,5 +1,4 @@
 import os
-from shutil import copyfile
 
 
 def listdir(path, prefix='', postfix='', return_prefix=True, return_postfix=True):
@@ -27,18 +26,5 @@ def create_folder_if_not_exists(path):
         os.mkdir(path)
 
 
-def save_images(tensor_generated, path, image_names, suffix=''):
-    assert len(tensor_generated) == len(image_names)
-    for i in range(len(tensor_generated)):
-        filepath = os.path.join(path, "{}{}.jpg".format(image_names[i], suffix))
-        with open(filepath, 'wb') as f:
-            f.write(tensor_generated[i])
 
-
-def copy_json(image_ids, folder_input, folder_output):
-    for image_id in image_ids:
-        filename = "{}.json".format(image_id)
-        path_from = os.path.join(folder_input, filename)
-        path_to = os.path.join(folder_output, filename)
-        copyfile(path_from, path_to)
 
