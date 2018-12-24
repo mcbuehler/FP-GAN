@@ -35,7 +35,6 @@ class GeneratorInference:
         self.batch_size = batch_size
         self.image_size = image_size
 
-
     def config_info(self):
         logging.info("Reading images from '{}'".format(self.path_in))
         logging.info("Loading model from '{}'".format(self.model_path))
