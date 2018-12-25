@@ -249,7 +249,7 @@ def dense(input, d, name, mode, reuse=False):
     return a
 
 
-def last_dense(input, mode, reuse=False, name=None):
+def last_dense(input, reuse=False, name=None):
     """ Last dense layer of eye gaze network
     Args:
       input: 4D tensor
@@ -263,18 +263,10 @@ def last_dense(input, mode, reuse=False, name=None):
         biases = _biases("biases", [1])
 
         output = tf.add(tf.matmul(input, weights), biases)
-
-        # if create_summaries:
-        if mode == Mode.TRAIN_UNITY:
-            tf.summary.histogram("weights", weights)
-            tf.summary.histogram("input", input)
-            tf.summary.histogram("output_before", output)
         # make sure to have outputs in the range [-1, 1]
         # output = tf.nn.l2_normalize(output)
         # output = tf.add(tf.multiply(output, 2), -1)
         # output = tf.multiply(tf.nn.tanh(output), 2)
-
-
 
     return output
 

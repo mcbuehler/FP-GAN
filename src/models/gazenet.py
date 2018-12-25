@@ -32,16 +32,20 @@ class GazeNet(BaseGazeNet):
           output: 4D tensor batch_size x out_size x out_size x 1 (default 1x5x5x1)
                   filled with 0.9 if real, 0.0 if fake
         """
-        self.is_training_tensor = tf.placeholder_with_default(is_training, shape=[],
+        self.is_training_tensor = tf.placeholder_with_default(is_training,
+                                                              shape=[],
                                                               name='is_training')
 
         with tf.variable_scope(self.name, reuse=self.reuse):
             # convolution layers
-            c32_1 = ops.conv3x3(input, k=32, stride=2, reuse=self.reuse, norm=None,
-                                is_training=self.is_training_tensor, name="c32_1",
+            c32_1 = ops.conv3x3(input, k=32, stride=2, reuse=self.reuse,
+                                norm=None,
+                                is_training=self.is_training_tensor,
+                                name="c32_1",
                                 mode=mode)
             c32_2 = ops.conv3x3(c32_1, k=32, reuse=self.reuse, norm=self.norm,
-                                is_training=self.is_training_tensor, name="c32_2",
+                                is_training=self.is_training_tensor,
+                                name="c32_2",
                                 mode=mode)
             c64 = ops.conv3x3(c32_2, k=64, reuse=self.reuse, norm=self.norm,
                               is_training=self.is_training_tensor, name="c64",
@@ -53,18 +57,20 @@ class GazeNet(BaseGazeNet):
                               is_training=self.is_training_tensor, name="c80",
                               mode=mode)
             c192 = ops.conv3x3(c80, k=192, reuse=self.reuse, norm=self.norm,
-                               is_training=self.is_training_tensor, name="c192",
+                               is_training=self.is_training_tensor,
+                               name="c192",
                                mode=mode)
             maxpool2x2 = ops.maxpool(c192, 2, name="maxpool2x2", stride=2,
                                      reuse=self.reuse)
             flattened = tf.contrib.layers.flatten(maxpool2x2)
             fc9600 = ops.dense(flattened, d=9600, name="fc9600",
                                reuse=self.reuse, mode=mode)
-            fc1000 = ops.dense(fc9600, d=1000, name="fc1000", reuse=self.reuse, mode=mode)
+            fc1000 = ops.dense(fc9600, d=1000, name="fc1000", reuse=self.reuse,
+                               mode=mode)
             out = ops.last_dense(
                 fc1000, name="out",
-                reuse=self.reuse, mode=mode,
-                )
+                reuse=self.reuse
+            )
         # What about a layer that adds a restriction on output?
         self.reuse = True
         self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,

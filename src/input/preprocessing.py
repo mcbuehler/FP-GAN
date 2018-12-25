@@ -272,47 +272,7 @@ class RefinedPreprocessor(Preprocessor):
             coords = [eval(l) for l in coords_list]
             return np.array([(x, ih - y, z) for (x, y, z) in coords])
 
-        result_dict['head'] = self._headpose_to_radians(json_data)
-
-        # interior_landmarks = process_coords(json_data['interior_margin_2d'])
-        # caruncle_landmarks = process_coords(json_data['caruncle_2d'])
-        # iris_landmarks = process_coords(json_data['iris_2d'])
-        #
-        # # Prepare to segment eye image
-        # left_corner = np.mean(caruncle_landmarks[:, :2], axis=0)
-        # right_corner = interior_landmarks[8, :2]
-        # eye_width = 1.5 * abs(left_corner[0] - right_corner[0])
-        # eye_middle = np.mean([np.amin(interior_landmarks[:, :2], axis=0),
-        #                       np.amax(interior_landmarks[:, :2], axis=0)],
-        #                      axis=0)
-        #
-        # # Centre axes to eyeball centre
-        # translate_mat = np.asmatrix(np.eye(3))
-        # translate_mat[:2, 2] = [[-iw_2], [-ih_2]]
-        #
-        # # Scale image to fit output dimensions (with a little bit of noise)
-        # scale_mat = np.asmatrix(np.eye(3))
-        # scale = 1. + self._noisy_value_from_type('scale')
-        # scale_inv = 1. / scale
-        # np.fill_diagonal(scale_mat, ow / eye_width * scale)
-        # original_eyeball_radius = 71.7593
-        # eyeball_radius = original_eyeball_radius * scale_mat[
-        #     0, 0]  # See: https://goo.gl/ZnXgDE
-        # result_dict['radius'] = np.float32(eyeball_radius)
-        #
-        # # Re-centre eye image such that eye fits (based on determined `eye_middle`)
-        # recentre_mat = np.asmatrix(np.eye(3))
-        # recentre_mat[0, 2] = iw / 2 - eye_middle[
-        #     0] + 0.5 * eye_width * scale_inv
-        # recentre_mat[1, 2] = ih / 2 - eye_middle[
-        #     1] + 0.5 * oh / ow * eye_width * scale_inv
-        # recentre_mat[0, 2] += self._noisy_value_from_type('translation')  # x
-        # recentre_mat[1, 2] += self._noisy_value_from_type('translation')  # y
-        #
-        # # Apply transforms
-        # rotate_mat = np.asmatrix(np.eye(3))
-        # transform_mat = recentre_mat * scale_mat * rotate_mat * translate_mat
-        # eye = cv.warpAffine(full_image, transform_mat[:2, :3], (ow, oh))
+        result_dict['head'] = json_data['head']
 
         eye = full_image
 
@@ -326,8 +286,8 @@ class RefinedPreprocessor(Preprocessor):
         result_dict['clean_eye'] = clean_eye
 
         # Convert look vector to gaze direction in polar angles
-        gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
-        result_dict['gaze'] = gaze
+        # gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
+        result_dict['gaze'] = np.array(json_data['gaze']).astype(np.float32)
 
         # Start augmentation
         if self.do_augmentation:
@@ -340,23 +300,5 @@ class RefinedPreprocessor(Preprocessor):
         eye -= 1.0
 
         result_dict['eye'] = eye
-
-        # # Select and transform landmark coordinates
-        # iris_centre = np.asarray([
-        #     iw_2 + original_eyeball_radius * -np.cos(original_gaze[0]) * np.sin(
-        #         original_gaze[1]),
-        #     ih_2 + original_eyeball_radius * -np.sin(original_gaze[0]),
-        # ])
-        # landmarks = np.concatenate([interior_landmarks[::2, :2],  # 8
-        #                             iris_landmarks[::4, :2],  # 8
-        #                             iris_centre.reshape((1, 2)),
-        #                             [[iw_2, ih_2]],  # Eyeball centre
-        #                             ])  # 18 in total
-        # landmarks = np.asmatrix(np.pad(landmarks, ((0, 0), (0, 1)), 'constant',
-        #                                constant_values=1))
-        # landmarks = np.asarray(landmarks * transform_mat.T)
-        # landmarks = landmarks[:, :2]  # We only need x, y
-        # result_dict['landmarks'] = landmarks.astype(np.float32)
-
         return_keys = ['clean_eye', 'eye', 'gaze']
         return [result_dict[k] for k in return_keys]

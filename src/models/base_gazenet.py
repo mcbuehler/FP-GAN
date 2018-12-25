@@ -107,12 +107,12 @@ class BaseGazeNet:
         # Create summaries
         tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=summary_key)
 
-        tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye, collections=summary_key)
-        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze, collections=summary_key)
-        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output, collections=summary_key)
+        tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye, collections=[summary_key])
+        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze, collections=[summary_key])
+        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output, collections=[summary_key])
 
-        tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze, collections=summary_key)
-        tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular, collections=summary_key)
+        tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze, collections=[summary_key])
+        tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular, collections=[summary_key])
 
         return {'gaze': output, 'error_angular': error_angular}, loss
 
