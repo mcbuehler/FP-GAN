@@ -10,33 +10,25 @@ import json
 import logging
 
 import os
+from collections import Iterable
+
 import tensorflow as tf
 
 from input.dataset_manager import DatasetManager
 from util.utils import convert2int
 from util.config_loader import Config
-from shutil import copyfile
 from util.files import create_folder_if_not_exists
 
 
-FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_string('config', None, 'input configuration')
-tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-tf.flags.DEFINE_boolean('U2M', True, 'Direction of inference (M2U or U2M)')
-
-
-if FLAGS.config is None:
-    print("Please provide config file (--config PATH).")
-    exit()
-
-
 class GeneratorInference:
-    def __init__(self, path_in, model_path, output_folder, batch_size, image_size):
+    def __init__(self, path_in, model_path, output_folder, batch_size, image_size, dataset_class):
         self.path_in = path_in
         self.model_path = model_path
         self.output_folder = output_folder
         self.batch_size = batch_size
         self.image_size = image_size
+        self.dataset_class = dataset_class
+
         create_folder_if_not_exists(self.output_folder)
 
     def config_info(self):
@@ -73,13 +65,14 @@ class GeneratorInference:
 
     def save_annotations(self, entry_evaluated):
         for i in range(self.batch_size):
-            id_decoded = entry_evaluated['id'][i].decode('utf-8')
+            id_decoded = entry_evaluated['id'][i][0].decode('utf-8')
+
             filename = "{}.json".format(id_decoded)
             path_to = os.path.join(self.output_folder, filename)
             out_dict = {
                 'gaze': entry_evaluated['gaze'][i].tolist(),
                 'head': entry_evaluated['head'][i].tolist(),
-                'landmarks': entry_evaluated['landmarks'][i].tolist()
+                # 'landmarks': entry_evaluated['landmarks'][i].tolist()
             }
             with open(path_to, 'w') as f:
                 json.dump(out_dict, f)
@@ -103,7 +96,7 @@ class GeneratorInference:
                     repeat=False,
                     testing=True,
                     drop_remainder=True,
-                    dataset_class="unity"
+                    dataset_class=self.dataset_class
                 )
 
                 coord = tf.train.Coordinator()
@@ -121,8 +114,11 @@ class GeneratorInference:
                         batch_ids = entry_evaluated['id']
                         batch_eyes_clean = entry_evaluated['clean_eye']
 
-                        # Ids are returned as byte
-                        image_ids = [id.decode('utf-8') for id in batch_ids]
+                        # Ids are returned as byte or list depending on dataset
+                        # Batch ids is a list where each entry is a list
+                        # with a single id
+                        image_ids = [id[0].decode('utf-8') for id in
+                                         batch_ids]
 
                         generated = sess.run(output_tensor, feed_dict={
                                         input_tensor: batch_eyes_clean
@@ -149,6 +145,15 @@ class GeneratorInference:
 
 
 def main(unused_argv):
+    FLAGS = tf.flags.FLAGS
+    tf.flags.DEFINE_string('config', None, 'input configuration')
+    tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
+    tf.flags.DEFINE_boolean('U2M', True, 'Direction of inference (M2U or U2M)')
+
+    if FLAGS.config is None:
+        print("Please provide config file (--config PATH).")
+        exit()
+
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
     # Variables used for both directions

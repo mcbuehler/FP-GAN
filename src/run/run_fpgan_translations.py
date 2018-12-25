@@ -13,12 +13,8 @@ import tensorflow as tf
 from models.fpgan_export import GeneratorExport
 from models.fpgan_inference import GeneratorInference
 from util.config_loader import Config
-
-FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_string('config', None, 'input configuration')
-tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-tf.flags.DEFINE_boolean('U2M', True, 'Direction of inference (M2U or U2M)')
-
+from util.enum_classes import TranslationDirection as Direction, \
+    DatasetClass as DS
 
 def run_export(cfg, U2M=True):
     """
@@ -65,28 +61,43 @@ def run_inference(cfg, U2M=True):
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
     # Variables dependent on direction
-    if FLAGS.U2M:
+    if U2M:
         path_in = cfg.get("S")
         model_path = cfg.get("path_model_u2m")
         output_folder = cfg.get('path_refined_u2m')
         inference = GeneratorInference(path_in, model_path, output_folder,
-                                       batch_size, image_size)
+                                       batch_size, image_size, dataset_class=DS.UNITY)
         inference.run()
     else:
-        logging.warning("Not implemented. Exiting.")
-        exit(0)
+        path_in = cfg.get("R")
+        model_path = cfg.get("path_model_m2u")
+        output_folder = cfg.get('path_refined_m2u')
+        inference = GeneratorInference(path_in, model_path, output_folder,
+                                       batch_size, image_size, dataset_class=DS.MPII)
+        inference.run()
 
 
-def main(unused_argv):
+def main():
+    FLAGS = tf.flags.FLAGS
+    tf.flags.DEFINE_string('config', None, 'input configuration')
+    tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
+    tf.flags.DEFINE_string('direction', 'U2M', 'input configuration')
+
     # Load the config variables
-    cfg_section = FLAGS.section
-    cfg = Config(FLAGS.config, cfg_section)
+    cfg = Config(FLAGS.config, FLAGS.section)
 
+    if FLAGS.direction == Direction.U2M:
+        U2M = True
+    elif FLAGS.direction == Direction.M2U:
+        U2M = False
+    else:
+        print("Invalid direction: {}".format(FLAGS.direction))
+        print("Direction must be one of: {}".format(", ".join(Direction().get_all())))
+        exit()
 
-    U2M = FLAGS.U2M
-    run_export(cfg, U2M)
+    # run_export(cfg, U2M)
     run_inference(cfg, U2M)
 
 
 if __name__ == '__main__':
-    tf.app.run()
+    main()

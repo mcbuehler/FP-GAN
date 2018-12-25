@@ -30,3 +30,18 @@ class EnvironmentVariable:
         # if value is None:
         #     logger.warn("Environment variable '{}' does not exist".format(variable))
         return value
+
+
+class TranslationDirection:
+    U2M = "U2M"
+    M2U = "M2U"
+
+    @classmethod
+    def get_all(cls):
+        return [cls.U2M, cls.M2U]
+
+
+class DatasetClass:
+    UNITY = 'unity'
+    MPII = 'mpii'
+    REFINED = 'refined'

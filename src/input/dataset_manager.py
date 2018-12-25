@@ -4,12 +4,14 @@ from input.unitydataset import UnityDataset
 from input.mpiidataset import MPIIDataset
 from input.refineddataset import RefinedDataset
 import logging
+from util.enum_classes import DatasetClass as DS
+
 
 class DatasetManager:
     dataset_classes = {
-        'unity': UnityDataset,
-        'mpii': MPIIDataset,
-        'refined': RefinedDataset
+        DS.UNITY: UnityDataset,
+        DS.MPII: MPIIDataset,
+        DS.REFINED: RefinedDataset
     }
 
     @classmethod

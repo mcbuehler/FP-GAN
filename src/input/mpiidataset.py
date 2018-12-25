@@ -23,8 +23,16 @@ class MPIIGenerator:
             for person_identifier, index in self.all_identifiers:
                 yield {
                     'eye': hf[person_identifier]['image'][index],
-                    'gaze': hf[person_identifier]['gaze'][index]
+                    # For MPII we only have clean eyes for the moment
+                    'clean_eye': hf[person_identifier]['image'][index],
+                    'gaze': hf[person_identifier]['gaze'][index],
+                    # 'landmarks': hf[person_identifier]['landmarks'][index],
+                    'head': hf[person_identifier]['head'][index],
+                    'id': [self._create_single_identifier(person_identifier, index)]
                 }
+
+    def _create_single_identifier(self, person, index):
+        return "{}_{}".format(person, index)
 
     def _create_all_identifiers(self):
         identifiers = list()
@@ -62,9 +70,19 @@ class MPIIDataset(BaseDataset):
 
         dataset = tf.data.Dataset.from_generator(
             generator,
-            {'eye': tf.uint8, 'gaze': tf.float32},
+            {'eye': tf.uint8,
+             'clean_eye': tf.uint8,
+             'gaze': tf.float32,
+             # 'landmarks': tf.float32,
+             'head': tf.float32,
+             'id': tf.string
+             },
             {'eye': tf.TensorShape([*generator.eye_shape, 3]),
-             'gaze': tf.TensorShape([2])
+             'clean_eye': tf.TensorShape([*generator.eye_shape, 3]),
+             'gaze': tf.TensorShape([2]),
+             # 'landmarks': tf.TensorShape([18, 2]),
+             'head': tf.TensorShape([2]),
+             'id': tf.TensorShape(1)
              }
             )
 
@@ -87,9 +105,11 @@ class MPIIDataset(BaseDataset):
         eye_preprocessed.set_shape(image_shape)
         return {
             'eye': eye_preprocessed,
+            'clean_eye': eye_preprocessed,
             'gaze': entry['gaze'],
-            'landmarks': entry['landmarks'],
-            'head': entry['head']
+            # 'landmarks': entry['landmarks'],
+            'head': entry['head'],
+            'id': entry['id']
         }
 
 

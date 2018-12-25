@@ -10,15 +10,6 @@ import tensorflow as tf
 from models.model import CycleGAN
 
 
-FLAGS = tf.flags.FLAGS
-tf.flags.DEFINE_string('config', None, 'input configuration')
-tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-
-if FLAGS.config is None:
-    print("Please provide config file (--config PATH).")
-    exit()
-
-
 class GeneratorExport:
     def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf):
         self.checkpoint_dir = checkpoint_dir
@@ -60,6 +51,14 @@ class GeneratorExport:
 
 
 def main(unused_argv):
+    FLAGS = tf.flags.FLAGS
+    tf.flags.DEFINE_string('config', None, 'input configuration')
+    tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
+
+    if FLAGS.config is None:
+        print("Please provide config file (--config PATH).")
+        exit()
+
     # Load the config variables
     cfg_section = FLAGS.section
     cfg = Config(FLAGS.config, cfg_section)

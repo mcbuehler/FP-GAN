@@ -80,7 +80,7 @@ class UnityDataset(BaseDataset):
         clean_eye.set_shape(image_shape)
         eye.set_shape(image_shape)
         return {
-            'id': file_stem,
+            'id': [file_stem],
             'clean_eye': clean_eye,
             'eye': eye,
             'gaze': gaze,
