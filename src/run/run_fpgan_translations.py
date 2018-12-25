@@ -3,7 +3,7 @@ An example of command-line usage is:
 CUDA_VISIBLE_DEVICES=0 python run/run_fpgan_translations.py
     --config ../config/fpgan_basic.ini
     --section 20181123-1412
-    --U2M True
+    --direction M2U
 
 """
 import logging
@@ -95,7 +95,7 @@ def main():
         print("Direction must be one of: {}".format(", ".join(Direction().get_all())))
         exit()
 
-    # run_export(cfg, U2M)
+    run_export(cfg, U2M)
     run_inference(cfg, U2M)
 
 
