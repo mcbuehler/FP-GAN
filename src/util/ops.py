@@ -39,8 +39,10 @@ def c7s1_k(input, k, reuse=False, norm='instance', activation='relu',
 
         if activation == 'relu':
             output = tf.nn.relu(normalized)
-        if activation == 'tanh':
+        elif activation == 'tanh':
             output = tf.nn.tanh(normalized)
+        else:
+            output = normalized
         return output
 
 
@@ -332,7 +334,6 @@ def _batch_norm(input, is_training):
         return tf.contrib.layers.batch_norm(input,
                                             decay=0.9,
                                             scale=True,
-                                            updates_collections=None,
                                             is_training=is_training)
 
 

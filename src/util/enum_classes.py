@@ -5,8 +5,8 @@ import os
 
 
 class Mode:
-    TRAIN_UNITY = "train_unity"
-    TRAIN_REFINED_U2M = "train_refined_U2M"
+    TRAIN = "train"
+    VALIDATION_WITHIN = "val_within"
     VALIDATION_UNITY = "val_unity"
     VALIDATION_MPII = "val_mpii"
 

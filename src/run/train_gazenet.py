@@ -41,9 +41,8 @@ class Validation:
         self.summary_op = tf.summary.merge_all(key="epoch")
 
     def get_loss(self, summary_key):
-        with tf.variable_scope(self.mode):
-            outputs, loss_validation = self.model.get_loss(
-                self.iterator, is_training=False, mode=self.mode, summary_key=summary_key)
+        outputs, loss_validation = self.model.get_loss(
+            self.iterator, is_training=False, mode=self.mode, summary_key=summary_key)
         return outputs, loss_validation
 
     def _log_result(self, loss_mean, loss_std, error_angular, step):
@@ -51,8 +50,8 @@ class Validation:
         logging.info('  Time: {}'.format(
             datetime.now().strftime('%b-%d-%I%M%p-%G')))
         logging.info(
-            '  loss {}     : {} (std: {:.4f}, angular: {:.4f})'.format(self.mode, loss_mean,
-                                                      loss_std, error_angular))
+            '  loss {}     : {} (std: {:.4f}, angular: {:.4f})'.format(
+                self.mode, loss_mean, loss_std, error_angular))
         # summary = tf.Summary()
         # summary.value.add(tag="{}/gaze_mse".format(self.mode),
         #                   simple_value=loss_mean)
@@ -67,9 +66,13 @@ class Validation:
         # Now we calculate the errors
 
         logging.info("Running {} batches...".format(self.n_batches_per_epoch))
-        results = [sess.run([self.outputs['error_angular'], self.loss, self.summary_op]) for i in range(self.n_batches_per_epoch)]
+        results = [sess.run(
+            [self.outputs['error_angular'],
+             self.loss, self.summary_op])
+            for i in range(self.n_batches_per_epoch)]
 
-        # loss_values is a list [[angular, mse, summary], [angular, mse, summary],...]
+        # loss_values is a list
+        # [[angular, mse, summary], [angular, mse, summary],...]
         angular_values = [r[0] for r in results]
         loss_values = [r[1] for r in results]
         summaries = [r[2] for r in results]
@@ -100,6 +103,7 @@ def train():
     beta2 = cfg.get('beta2')
     path_train = cfg.get('path_train')
     n_steps = cfg.get('n_steps')
+    path_validation_within = cfg.get('path_validation_within')
     path_validation_unity = cfg.get('path_validation_unity')
     path_validation_mpii = cfg.get('path_validation_mpii')
     dataset_class_train = cfg.get('dataset_class_train')
@@ -152,7 +156,7 @@ def train():
                 dataset_class=dataset_class_train
             )
             loss_train = get_loss(train_iterator, gazenet,
-                                  mode=Mode.TRAIN_UNITY,
+                                  mode=Mode.TRAIN,
                                   regulariser=regulariser, is_training=True)
             optimizers = gazenet.optimize(loss_train)
 
@@ -164,6 +168,14 @@ def train():
         # Validation graphs
         # We do this after tf.summary_merge_all because we don't want to create
         # summaries for every step
+        validation_within = Validation(
+            gazenet,
+            Mode.VALIDATION_WITHIN,
+            path_validation_within,
+            image_size,
+            batch_size,
+            dataset_class_train
+        )
         validation_unity = Validation(
             gazenet,
             Mode.VALIDATION_UNITY,
@@ -216,6 +228,9 @@ def train():
                     )
 
                 if step >= 0 and step % 1000 == 0:
+                    validation_within.perform_validation_step(sess,
+                                                             step,
+                                                             train_writer)
                     validation_unity.perform_validation_step(sess,
                                                              step,
                                                              train_writer)

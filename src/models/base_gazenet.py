@@ -154,9 +154,10 @@ class BaseGazeNet:
             return learning_step
 
         optimiser = make_optimizer(loss, self.variables, name='Adam')
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         with tf.control_dependencies(
-                [optimiser]):
+                [optimiser, update_ops]):
             return tf.no_op(name='optimisers')
 
     def sample(self, input):

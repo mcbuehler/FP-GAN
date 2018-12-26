@@ -29,12 +29,11 @@ class GazeNet(BaseGazeNet):
         Args:
           input: batch_size x image_size x image_size x 3
         Returns:
-          output: 4D tensor batch_size x out_size x out_size x 1 (default 1x5x5x1)
-                  filled with 0.9 if real, 0.0 if fake
+          output: 4D tensor batch_size x out_size x out_size x 1
+            (default 1x5x5x1) filled with 0.9 if real, 0.0 if fake
         """
-        self.is_training_tensor = tf.placeholder_with_default(is_training,
-                                                              shape=[],
-                                                              name='is_training')
+        self.is_training_tensor = tf.placeholder_with_default(
+            is_training, shape=[], name='is_training')
 
         with tf.variable_scope(self.name, reuse=self.reuse):
             # convolution layers
@@ -68,11 +67,10 @@ class GazeNet(BaseGazeNet):
             fc1000 = ops.dense(fc9600, d=1000, name="fc1000", reuse=self.reuse,
                                mode=mode)
             out = ops.last_dense(
-                fc1000, name="out",
-                reuse=self.reuse
+                fc1000, name="out", reuse=self.reuse
             )
         # What about a layer that adds a restriction on output?
         self.reuse = True
-        self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,
-                                           scope=self.name)
+        self.variables = tf.get_collection(
+            tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
         return out
