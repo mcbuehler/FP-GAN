@@ -41,8 +41,9 @@ class Validation:
         self.summary_op = tf.summary.merge_all(key="epoch")
 
     def get_loss(self, summary_key):
-        outputs, loss_validation = self.model.get_loss(
-            self.iterator, is_training=False, mode=self.mode, summary_key=summary_key)
+        with tf.variable_scope(self.mode):
+            outputs, loss_validation = self.model.get_loss(
+                self.iterator, is_training=False, mode=self.mode, summary_key=summary_key)
         return outputs, loss_validation
 
     def _log_result(self, loss_mean, loss_std, error_angular, step):
