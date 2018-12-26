@@ -10,18 +10,12 @@ from datetime import datetime
 
 from models.gazenet import GazeNet
 from util.enum_classes import Mode
-
+from util.model_manager import ModelManager
 
 FLAGS = tf.flags.FLAGS
 
 tf.flags.DEFINE_string('config', None, 'input configuration')
 tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-
-
-def get_loss(iterator, gazenet, mode, regulariser=None, is_training=True):
-    gaze_dict_validation, loss_validation = gazenet.get_loss(
-        iterator, is_training=is_training, mode=mode, regulariser=regulariser)
-    return loss_validation
 
 
 class Validation:
@@ -92,7 +86,7 @@ def train():
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
     # Variables used for both directions
-    batch_size = cfg.get('batch_size_inference')
+    batch_size = cfg.get('batch_size')
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
     checkpoints_dir = cfg.get('checkpoint_folder')
@@ -110,9 +104,10 @@ def train():
     dataset_class_validation_unity = cfg.get('dataset_class_validation_unity')
     dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
     do_augment = cfg.get('augmentation')
+    model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), [batch_size, *image_size, 3])
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
-    load_model = checkpoints_dir != ""
+    load_model = checkpoints_dir is not None and checkpoints_dir != ""
 
     checkpoint_dir_name = "checkpoints_gazenet"
     if not load_model:
@@ -155,15 +150,17 @@ def train():
                 shuffle=True, repeat=True, testing=do_augment,
                 dataset_class=dataset_class_train
             )
-            loss_train = get_loss(train_iterator, gazenet,
-                                  mode=Mode.TRAIN,
-                                  regulariser=regulariser, is_training=True)
+            _, loss_train = gazenet.get_loss(
+                train_iterator, is_training=True,
+                mode=Mode.TRAIN, regulariser=regulariser)
             optimizers = gazenet.optimize(loss_train)
 
             # Summaries and saver
             summary_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
-            saver = tf.train.Saver()
+            # We need to save global variables because we want to save
+            # variables from batch_norm layers
+            saver = tf.train.Saver(tf.global_variables())
 
         # Validation graphs
         # We do this after tf.summary_merge_all because we don't want to create
@@ -193,7 +190,7 @@ def train():
             dataset_class_validation_mpii
         )
 
-        if load_model:
+        if load_model:# and False:
             logging.info("Restoring from checkpoint directory: {}".format(checkpoints_dir))
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
@@ -201,8 +198,9 @@ def train():
             restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
             step = int(meta_graph_path.split("-")[2].split(".")[0])
         else:
+            logging.info("Training new model. Checkpoint directory: {}".format(checkpoints_dir))
             # We copy config file
-            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}_config.ini".format(model_name)))
+            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}__{}.ini".format(model_name, FLAGS.section)))
             sess.run(tf.global_variables_initializer())
             step = 0
 
@@ -227,7 +225,22 @@ def train():
                         loss_value)
                     )
 
-                if step > 0 and step % 5000 == 0:
+                    # if step > 0 and step % 5000 == 0:
+                if step > 0 and step % 1000 == 3:
+                    input_dimensions = [batch_size, *image_size, 3]
+
+                    input_image = tf.placeholder(tf.float32,
+                                                 shape=input_dimensions,
+                                                 name='input_image')
+                    output_gaze = gazenet.sample(input_image)
+                    output_gaze = tf.identity(output_gaze, name='output_gaze')
+                    save_dir = os.path.join(checkpoints_dir, "saved_model")
+                    tf.saved_model.simple_save(
+                        sess,
+                        save_dir,
+                        {'in': input_image},
+                        {'out': output_gaze}
+                    )
                     validation_within.perform_validation_step(sess,
                                                              step,
                                                              train_writer)

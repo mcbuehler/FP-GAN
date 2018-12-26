@@ -73,4 +73,5 @@ class GazeNet(BaseGazeNet):
         self.reuse = True
         self.variables = tf.get_collection(
             tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
+
         return out

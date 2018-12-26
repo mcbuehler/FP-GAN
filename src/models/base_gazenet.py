@@ -117,7 +117,7 @@ class BaseGazeNet:
         return {'gaze': output, 'error_angular': error_angular}, loss
 
     def optimize(self, loss):
-        def make_optimizer(loss, variables, name='Adam'):
+        def make_optimizer(loss, variables=None, name='Adam'):
             """ Adam optimizer with learning rate 0.0002 for the first 100k
             steps (~100 epochs)
                 and a linearly decaying rate that goes to zero over
@@ -148,17 +148,15 @@ class BaseGazeNet:
                 #                                                                global_step,
                 #                                                                variables)
                 self.Optimiser(self.learning_rate, beta1=self.beta1, beta2=self.beta2, name=name)
-                    .minimize(loss, global_step=global_step,
-                              var_list=variables)
+                    .minimize(loss, global_step=global_step)#,var_list=variables)
             )
             return learning_step
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
         with tf.control_dependencies(update_ops):
-            return make_optimizer(loss, self.variables, name='Adam')
-
+            return make_optimizer(loss, name='Adam') # self.variables,
 
     def sample(self, input):
-        out = self.forward(input, mode=Mode.SAMPLE)
+        out = self.forward(input, mode=Mode.SAMPLE, is_training=False)
         return out
