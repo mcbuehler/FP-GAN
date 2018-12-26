@@ -105,7 +105,7 @@ class BaseGazeNet:
             loss = loss_gaze
 
         # Create summaries
-        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=summary_key)
+        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=[summary_key])
 
         tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye, collections=[summary_key])
         tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze, collections=[summary_key])
@@ -153,12 +153,11 @@ class BaseGazeNet:
             )
             return learning_step
 
-        optimiser = make_optimizer(loss, self.variables, name='Adam')
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-        with tf.control_dependencies(
-                [optimiser, update_ops]):
-            return tf.no_op(name='optimisers')
+        with tf.control_dependencies(update_ops):
+            return make_optimizer(loss, self.variables, name='Adam')
+
 
     def sample(self, input):
         out = self.forward(input, mode=Mode.SAMPLE)
