@@ -227,7 +227,7 @@ def train():
                     )
 
                     # if step > 0 and step % 5000 == 0:
-                if step > 0 and step % 1000 == 3:
+                if step > 0 and step % 5000 == 3:
                     model_manager.save_model(sess, gazenet)
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
