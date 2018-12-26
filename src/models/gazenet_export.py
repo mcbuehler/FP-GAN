@@ -36,21 +36,19 @@ class GazeNetExport:
             output_gaze = tf.identity(output_gaze, name='output_gaze')
 
         with tf.Session(graph=graph) as sess:
-            sess.run(tf.global_variables_initializer())
-
+            #sess.run(tf.global_variables_initializer())
             checkpoint = tf.train.get_checkpoint_state(self.checkpoint_dir)
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
             restore = tf.train.import_meta_graph(meta_graph_path)
             latest_ckpt = tf.train.latest_checkpoint(self.checkpoint_dir)
             logging.info("Latest checkpoint: {}".format(latest_ckpt))
             restore.restore(sess, latest_ckpt)
-            step = int(meta_graph_path.split("-")[2].split(".")[0])
 
             output_graph_def = tf.graph_util.convert_variables_to_constants(
                 sess, graph.as_graph_def(), [output_gaze.op.name])
 
             tf.train.write_graph(output_graph_def, self.checkpoint_dir,
-                                 model_name, as_text=False)
+                                 "{}.pb".format(model_name), as_text=False)
 
 
 def main():
@@ -76,7 +74,7 @@ def main():
     )
 
     generator_export = GazeNetExport(**default_args)
-    generator_export.run(cfg.get('model_name_pb'))
+    generator_export.run(cfg.get('model_name'))
 
 
 

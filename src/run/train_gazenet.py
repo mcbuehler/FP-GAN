@@ -104,7 +104,6 @@ def train():
     dataset_class_validation_unity = cfg.get('dataset_class_validation_unity')
     dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
     do_augment = cfg.get('augmentation')
-    model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), [batch_size, *image_size, 3])
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -118,6 +117,8 @@ def train():
         os.makedirs(checkpoints_dir)
     except os.error:
         pass
+
+    model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), [batch_size, *image_size, 3])
 
     logging.info("Checkpoint directory: {}".format(checkpoints_dir))
 
@@ -227,20 +228,10 @@ def train():
 
                     # if step > 0 and step % 5000 == 0:
                 if step > 0 and step % 1000 == 3:
-                    input_dimensions = [batch_size, *image_size, 3]
-
-                    input_image = tf.placeholder(tf.float32,
-                                                 shape=input_dimensions,
-                                                 name='input_image')
-                    output_gaze = gazenet.sample(input_image)
-                    output_gaze = tf.identity(output_gaze, name='output_gaze')
-                    save_dir = os.path.join(checkpoints_dir, "saved_model")
-                    tf.saved_model.simple_save(
-                        sess,
-                        save_dir,
-                        {'in': input_image},
-                        {'out': output_gaze}
-                    )
+                    model_manager.save_model(sess, gazenet)
+                    save_path = saver.save(sess,
+                                           checkpoints_dir + "/model.ckpt",
+                                           global_step=step)
                     validation_within.perform_validation_step(sess,
                                                              step,
                                                              train_writer)
@@ -250,11 +241,6 @@ def train():
                     validation_mpii.perform_validation_step(sess,
                                                              step,
                                                              train_writer)
-
-                    save_path = saver.save(sess,
-                                           checkpoints_dir + "/model.ckpt",
-                                           global_step=step)
-                    logging.info("Model saved in file: %s" % save_path)
                 step += 1
         except KeyboardInterrupt:
             logging.info('Interrupted')

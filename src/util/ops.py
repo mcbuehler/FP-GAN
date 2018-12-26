@@ -331,10 +331,17 @@ def _batch_norm(input, is_training):
     """ Batch Normalization
     """
     with tf.variable_scope("batch_norm"):
-        return tf.contrib.layers.batch_norm(input,
-                                            decay=0.9,
-                                            scale=True,
-                                            is_training=is_training)
+        return tf.layers.batch_normalization(
+            input,
+            momentum=0.9,
+            scale=True,
+            training=is_training
+
+        )
+        # return tf.contrib.layers.batch_norm(input,
+        #                                     ecay=0.9,
+        #                                     scale=True,
+        #                                     training=is_training)
 
 
 def _instance_norm(input):
