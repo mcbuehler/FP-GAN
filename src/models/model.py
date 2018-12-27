@@ -20,7 +20,7 @@ class CycleGAN:
                  norm='instance',
                  lambda1=10,
                  lambda2=10,
-                 lambda_identity=1,
+                 lambdas_features={"identity": 5, "gaze": 5, "landmarks": 5},
                  learning_rate=2e-4,
                  beta1=0.5,
                  ngf=64,
@@ -34,8 +34,8 @@ class CycleGAN:
           image_size: list(height, width)
           lambda1: integer, weight for forward cycle loss (X->Y->X)
           lambda2: integer, weight for backward cycle loss (Y->X->Y)
-          lambda_identity: integer, weight for
-            identity transformation loss (X -> Y). Same for both directions.
+          lambdas_features: dict lambdas for feature loss. keys:
+            "identity", "gaze", "landmarks"
           use_lsgan: boolean
           norm: 'instance' or 'batch'
           learning_rate: float, initial learning rate for Adam
@@ -45,7 +45,7 @@ class CycleGAN:
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        self.lambda_identity = lambda_identity
+        self.lambdas_features = lambdas_features
         self.use_lsgan = use_lsgan
         use_sigmoid = not use_lsgan
         self.batch_size = batch_size
@@ -113,7 +113,7 @@ class CycleGAN:
         fake_y = self.G(x)
         G_gan_loss = self.generator_loss(self.D_Y, fake_y,
                                          use_lsgan=self.use_lsgan)
-        G_transform_loss = self.identity_transform_loss(x, fake_y)
+        G_transform_loss = self.get_feature_loss(x, fake_y)
         G_loss = G_gan_loss + cycle_loss + G_transform_loss
         D_Y_loss = self.discriminator_loss(self.D_Y, y, self.fake_y,
                                            use_lsgan=self.use_lsgan)
@@ -122,7 +122,7 @@ class CycleGAN:
         fake_x = self.F(y)
         F_gan_loss = self.generator_loss(self.D_X, fake_x,
                                          use_lsgan=self.use_lsgan)
-        F_transform_loss = self.identity_transform_loss(y, fake_x)
+        F_transform_loss = self.get_feature_loss(y, fake_x)
         F_loss = F_gan_loss + cycle_loss + F_transform_loss
         D_X_loss = self.discriminator_loss(self.D_X, x, self.fake_x,
                                            use_lsgan=self.use_lsgan)
@@ -239,7 +239,21 @@ class CycleGAN:
         loss = self.lambda1 * forward_loss + self.lambda2 * backward_loss
         return loss
 
-    def identity_transform_loss(self, x, fake_y):
+    def get_feature_loss(self, x, fake_y):
+        """
+        Placeholder only
+        :param x: real input
+        :param fake_y: translated x
+        :return:
+        """
+        return 0
+
+
+class BasicFPGAN(CycleGAN):
+    def get_feature_loss(self, x, fake_y):
+        return self._identity_transform_loss(x, fake_y)
+
+    def _identity_transform_loss(self, x, fake_y):
         """
         L1 Identity transform loss. This ensures that fake_y is
         not too different from x
@@ -247,5 +261,6 @@ class CycleGAN:
         :param fake_y: G(x)
         :return:
         """
+        assert 'identity' in self.lambdas_features.keys()
         loss = tf.reduce_mean(tf.abs(fake_y - x))
-        return self.lambda_identity * loss
+        return self.lambdas_features['identity'] * loss
