@@ -83,7 +83,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                testing=False
+                do_augmentation=True  # TODO: should we augment?
             )
             self.Y_iterator = DatasetManager.get_dataset_iterator_for_path(
                 self.Y_train_file,
@@ -91,7 +91,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                testing=False
+                do_augmentation=True  # TODO: should we augment?
             )
 
     def model(self, fake_input=False):

@@ -26,7 +26,7 @@ class Validation:
             batch_size,
             shuffle=False,
             repeat=True,
-            testing=True,
+            do_augmentation=False,
             dataset_class=dataset_class)
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
@@ -103,7 +103,7 @@ def train():
     dataset_class_train = cfg.get('dataset_class_train')
     dataset_class_validation_unity = cfg.get('dataset_class_validation_unity')
     dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
-    do_augment = cfg.get('augmentation')
+    do_augmentation = cfg.get('augmentation')
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -148,7 +148,7 @@ def train():
                 regulariser = None
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
-                shuffle=True, repeat=True, testing=do_augment,
+                shuffle=True, repeat=True, do_augmentation=do_augmentation,
                 dataset_class=dataset_class_train
             )
             _, loss_train = gazenet.get_loss(
@@ -227,7 +227,7 @@ def train():
                     )
 
                     # if step > 0 and step % 5000 == 0:
-                if step > 0 and step % 5000 == 3:
+                if step > 0 and step % 5000 == 0:
                     model_manager.save_model(sess, gazenet)
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
@@ -248,6 +248,7 @@ def train():
         except Exception as e:
             coord.request_stop(e)
         finally:
+            model_manager.save_model(sess, gazenet)
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
                                    global_step=step)
             logging.info("Model saved in file: %s" % save_path)

@@ -29,12 +29,12 @@ class DatasetManager:
             batch_size,
             shuffle=True,
             repeat=True,
-            testing=False,
+            do_augmentation=False,
             drop_remainder=False,
             dataset_class=None
     ):
         dataset = cls._get_dataset_class(dataset_class)
-        dataset = dataset(path, image_size, batch_size, shuffle=shuffle, testing=testing,
+        dataset = dataset(path, image_size, batch_size, shuffle=shuffle, do_augmentation=do_augmentation,
                 repeat=repeat, drop_remainder=drop_remainder)
         iterator = dataset.get_iterator()
         iterator.N = dataset.N

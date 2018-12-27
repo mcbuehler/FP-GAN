@@ -94,7 +94,7 @@ class GeneratorInference:
                     batch_size=self.batch_size,
                     shuffle=False,
                     repeat=False,
-                    testing=True,
+                    do_augmentation=False,
                     drop_remainder=True,
                     dataset_class=self.dataset_class
                 )

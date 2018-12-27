@@ -1,5 +1,5 @@
 import logging
-import os, argparse
+import os, argparse, shutil
 
 import tensorflow as tf
 from tensorflow.python.saved_model import tag_constants
@@ -13,12 +13,21 @@ class ModelManager:
         self.save_folder = save_folder
         self.input_dimensions = input_dimensions
 
+    def _remove_folder_if_exists(self, path):
+        if os.path.exists(path):
+            shutil.rmtree(path)
+
     def save_model(self, sess, model):
         input_placeholder = tf.placeholder(tf.float32,
                                      shape=self.input_dimensions,
                                      name=self.INPUT_NAME)
         output_placeholder = model.sample(input_placeholder)
-        output_placeholder = tf.identity(output_placeholder, name=self.OUTPUT_NAME)
+        output_placeholder = tf.identity(output_placeholder,
+                                         name=self.OUTPUT_NAME)
+
+        # simple_save creates a new folder and fails if the folder already
+        # exists
+        self._remove_folder_if_exists(self.save_folder)
 
         tf.saved_model.simple_save(
             sess,

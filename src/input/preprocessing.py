@@ -8,9 +8,9 @@ logger = get_logger()
 
 class Preprocessor:
     def __init__(self,
-                 testing=False,
-                 eye_image_shape=[72, 120]):
-        self.do_augmentation = not testing
+                 do_augmentation,
+                 eye_image_shape=(72, 120)):
+        self.do_augmentation = do_augmentation
         self._eye_image_shape = eye_image_shape
 
         # Define bounds for noise values for different augmentation types
@@ -127,13 +127,12 @@ class Preprocessor:
 
 class UnityPreprocessor(Preprocessor):
     def __init__(self,
-                 testing=False,
-                 eye_image_shape=[72, 120]):
-        super().__init__(testing=testing, eye_image_shape=eye_image_shape)
+                 do_augmentation,
+                 eye_image_shape=(72, 120)):
+        super().__init__(do_augmentation=do_augmentation,
+                         eye_image_shape=eye_image_shape)
         self._short_name = 'UnityEyes'
-        self.do_augmentation = not testing
-        if testing:
-            self._short_name += ':test'
+        self.do_augmentation = do_augmentation
 
     def preprocess(self, full_image, json_data):
         """Use annotations to segment eyes and calculate gaze direction."""
@@ -237,9 +236,8 @@ class UnityPreprocessor(Preprocessor):
 
 class MPIIPreprocessor(Preprocessor):
     def __init__(self,
-                 testing=False,
                  eye_image_shape=(36, 60)):
-        super().__init__(testing=testing, eye_image_shape=eye_image_shape)
+        super().__init__(do_augmentation=False, eye_image_shape=eye_image_shape)
 
     def preprocess(self, image):
         image = self.bgr2rgb(image)
@@ -256,9 +254,9 @@ class MPIIPreprocessor(Preprocessor):
 
 class RefinedPreprocessor(Preprocessor):
     def __init__(self,
-                 testing=False,
-                 eye_image_shape=(36, 60)):
-        super().__init__(testing=testing, eye_image_shape=eye_image_shape)
+                 do_augmentation,
+                 eye_image_shape=(72, 120)):
+        super().__init__(do_augmentation, eye_image_shape=eye_image_shape)
 
     def preprocess(self, full_image, json_data):
         """Use annotations to segment eyes and calculate gaze direction."""
