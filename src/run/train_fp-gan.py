@@ -6,48 +6,47 @@ from datetime import datetime
 
 from models.model import CycleGAN
 from util.utils import ImagePool
+from util.config_loader import Config
+
 
 FLAGS = tf.flags.FLAGS
+tf.flags.DEFINE_string('config', None, 'input configuration')
+tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration section')
 
-tf.flags.DEFINE_integer('batch_size', 8, 'batch size, default: 1')
-tf.flags.DEFINE_integer('image_width', 120, 'default: 120')
-tf.flags.DEFINE_integer('image_height', 72, 'default: 72')
-tf.flags.DEFINE_bool('use_lsgan', True,
-                     'use lsgan (mean squared error) or cross entropy loss, default: True')
-tf.flags.DEFINE_string('norm', 'instance',
-                       '[instance, batch] use instance norm or batch norm, default: instance')
-tf.flags.DEFINE_integer('lambda1', 10,
-                        'weight for forward cycle loss (X->Y->X), default: 10')
-tf.flags.DEFINE_integer('lambda2', 10,
-                        'weight for backward cycle loss (Y->X->Y), default: 10')
-tf.flags.DEFINE_integer('lambda_identity', 5,
-                        "weight for identity transformation loss X -> Y, meaning ||G(x) - x||_1"
-                        "(same value for both directions), default: 1")
-tf.flags.DEFINE_float('learning_rate', 2e-4,
-                      'initial learning rate for Adam, default: 0.0002')
-tf.flags.DEFINE_float('beta1', 0.5,
-                      'momentum term of Adam, default: 0.5')
-tf.flags.DEFINE_float('pool_size', 50,
-                      'size of image buffer that stores previously generated images, default: 50')
-tf.flags.DEFINE_integer('ngf', 64,
-                        'number of gen filters in first conv layer, default: 64')
-tf.flags.DEFINE_string('X', '../data/UnityEyes',
-                       'folder containing UnityEyes')
-tf.flags.DEFINE_string('Y', '../data/MPIIFaceGaze/single-eye-right_zhang.h5',
-                       'h5 file with MPIIFaceGaze images')
-tf.flags.DEFINE_string('load_model', None,
-                       'folder of saved model that you wish to continue training (e.g. 20170602-1936), default: None')
-tf.flags.DEFINE_integer('n_steps', 150000,
-                        'number of steps to train. Half of the steps will be trained with a fix learning rate, the second half with linearly decaying LR.')
-tf.flags.DEFINE_string('data_format', 'NHWC',
-                       'NHWC or NCHW. default: NHWC')  # Important: This implementation does not yet support NCHW, so stick to NHWC!
+# Load the config variables
+cfg = Config(FLAGS.config, FLAGS.section)
+
+# Variables used for both directions
+batch_size = cfg.get('batch_size')
+image_size = [cfg.get('image_height'),
+              cfg.get('image_width')]
+use_lsgan = cfg.get('use_lsgan')
+norm = cfg.get('norm')
+lambda1 = cfg.get('lambda1')
+lambda2 = cfg.get('lambda2')
+lambda_identity = cfg.get('lambda_identity')
+lambda_gaze = cfg.get('lambda_gaze')
+lambda_landmarks = cfg.get('lambda_landmarks')
+learning_rate = cfg.get('learning_rate')
+
+beta1 = cfg.get('beta1')
+pool_size = cfg.get('pool_size')
+ngf = cfg.get('ngf')
+S = cfg.get('S')
+R = cfg.get('R')
+checkpoints_dir = cfg.get('checkpoint_folder')
+n_steps = cfg.get('n_steps')
+
+load_model = checkpoints_dir is not None and checkpoints_dir != ""
+lambdas_features = {
+    'identity': lambda_identity,
+    'gaze': lambda_gaze,
+    'landmarks': lambda_landmarks
+}
 
 
 def train():
-    if FLAGS.load_model is not None:
-        checkpoints_dir = "../checkpoints/" + FLAGS.load_model.lstrip(
-            "checkpoints/")
-    else:
+    if not load_model:
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
         checkpoints_dir = "../checkpoints/{}".format(current_time)
     try:
@@ -57,35 +56,32 @@ def train():
 
     graph = tf.Graph()
 
-    # make sure to use image_height first
-    image_size = (FLAGS.image_height, FLAGS.image_width)
-
     with tf.Session(graph=graph) as sess:
         with graph.as_default():
             cycle_gan = CycleGAN(
-                X_train_file=FLAGS.X,
-                Y_train_file=FLAGS.Y,
-                batch_size=FLAGS.batch_size,
+                S_train_file=S,
+                R_train_file=R,
+                batch_size=batch_size,
                 image_size=image_size,
-                use_lsgan=FLAGS.use_lsgan,
-                norm=FLAGS.norm,
-                lambda1=FLAGS.lambda1,
-                lambda2=FLAGS.lambda2,
-                lambda_identity=FLAGS.lambda_identity,
-                learning_rate=FLAGS.learning_rate,
-                beta1=FLAGS.beta1,
-                ngf=FLAGS.ngf,
+                use_lsgan=use_lsgan,
+                norm=norm,
+                lambda1=lambda1,
+                lambda2=lambda2,
+                lambdas_features=lambdas_features,
+                learning_rate=learning_rate,
+                beta1=beta1,
+                ngf=ngf,
                 tf_session=sess,
             )
             G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x = cycle_gan.model()
             optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss,
-                                            n_steps=FLAGS.n_steps)
+                                            n_steps=n_steps)
 
             summary_op = tf.summary.merge_all()
             train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
             saver = tf.train.Saver()
 
-        if FLAGS.load_model is not None:
+        if load_model:
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
             restore = tf.train.import_meta_graph(meta_graph_path)
@@ -99,10 +95,10 @@ def train():
         # Collect errors
         errors = list()
 
-        fake_Y_pool = ImagePool(FLAGS.pool_size)
-        fake_X_pool = ImagePool(FLAGS.pool_size)
+        fake_Y_pool = ImagePool(pool_size)
+        fake_X_pool = ImagePool(pool_size)
 
-        while step < FLAGS.n_steps and not coord.should_stop():
+        while step < n_steps and not coord.should_stop():
             try:
                 fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
 
@@ -111,8 +107,8 @@ def train():
                         [optimizers, G_loss, D_Y_loss, F_loss, D_X_loss,
                          summary_op],
                         feed_dict={
-                            cycle_gan.fake_y: fake_Y_pool.query(fake_y_val),
-                            cycle_gan.fake_x: fake_X_pool.query(fake_x_val)}
+                            cycle_gan.fake_r: fake_Y_pool.query(fake_y_val),
+                            cycle_gan.fake_s: fake_X_pool.query(fake_x_val)}
                     )
                 )
 

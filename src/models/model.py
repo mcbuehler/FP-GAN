@@ -6,14 +6,16 @@ import util.utils as utils
 from models.generator import Generator
 from models.discriminator import Discriminator
 from input.dataset_manager import DatasetManager
+from util.enum_classes import DatasetClass as DS
+
 
 REAL_LABEL = 0.9
 
 
 class CycleGAN:
     def __init__(self,
-                 X_train_file='',
-                 Y_train_file='',
+                 S_train_file='',
+                 R_train_file='',
                  batch_size=1,
                  image_size=(78, 120),
                  use_lsgan=True,
@@ -28,8 +30,8 @@ class CycleGAN:
                  ):
         """
         Args:
-          X_train_file: string UnityEyes folder
-          Y_train_file: string MPIIGaze h5 File
+          S_train_file: string UnityEyes folder
+          R_train_file: string MPIIGaze h5 File
           batch_size: integer, batch size
           image_size: list(height, width)
           lambda1: integer, weight for forward cycle loss (X->Y->X)
@@ -45,6 +47,9 @@ class CycleGAN:
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
+        assert 'identity' in self.lambdas_features.keys()
+        assert 'gaze' in self.lambdas_features.keys()
+        # assert 'identity' in self.lambdas_features.keys()
         self.lambdas_features = lambdas_features
         self.use_lsgan = use_lsgan
         use_sigmoid = not use_lsgan
@@ -52,8 +57,8 @@ class CycleGAN:
         self.image_size = image_size
         self.learning_rate = learning_rate
         self.beta1 = beta1
-        self.X_train_file = X_train_file
-        self.Y_train_file = Y_train_file
+        self.S_train_file = S_train_file
+        self.R_train_file = R_train_file
         self.tf_session = tf_session
 
         self.is_training = tf.placeholder_with_default(True, shape=[],
@@ -61,37 +66,39 @@ class CycleGAN:
 
         self.G = Generator('G', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size)
-        self.D_Y = Discriminator('D_Y',
+        self.D_R = Discriminator('D_Y',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
         self.F = Generator('F', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size)
-        self.D_X = Discriminator('D_X',
+        self.D_S = Discriminator('D_X',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
 
-        self.fake_x = tf.placeholder(tf.float32,
+        self.fake_s = tf.placeholder(tf.float32,
                                      shape=[batch_size, image_size[0],
                                             image_size[1], 3])
-        self.fake_y = tf.placeholder(tf.float32,
+        self.fake_r = tf.placeholder(tf.float32,
                                      shape=[batch_size, image_size[0],
                                             image_size[1], 3])
-        if self.X_train_file != '' and self.Y_train_file != '':
-            self.X_iterator = DatasetManager.get_dataset_iterator_for_path(
-                self.X_train_file,
+        if self.S_train_file != '' and self.R_train_file != '':
+            self.S_iterator = DatasetManager.get_dataset_iterator_for_path(
+                self.S_train_file,
                 image_size,
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=True  # TODO: should we augment?
+                do_augmentation=True,  # TODO: should we augment?
+                dataset_class=DS.UNITY
             )
-            self.Y_iterator = DatasetManager.get_dataset_iterator_for_path(
-                self.Y_train_file,
+            self.R_iterator = DatasetManager.get_dataset_iterator_for_path(
+                self.R_train_file,
                 image_size,
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=True  # TODO: should we augment?
+                do_augmentation=True,  # TODO: should we augment?
+                dataset_class=DS.MPII
             )
 
     def model(self, fake_input=False):
@@ -100,10 +107,10 @@ class CycleGAN:
             x = tf.placeholder(tf.float32, shape)
             y = tf.placeholder(tf.float32, shape)
         else:
-            X_input_batch = self.X_iterator.get_next()
+            X_input_batch = self.S_iterator.get_next()
             x = X_input_batch['eye']
 
-            Y_input_batch = self.Y_iterator.get_next()
+            Y_input_batch = self.R_iterator.get_next()
             y = Y_input_batch['eye']
 
         # why don't we feed G(x) / F(y) here?
@@ -111,27 +118,27 @@ class CycleGAN:
 
         # X -> Y
         fake_y = self.G(x)
-        G_gan_loss = self.generator_loss(self.D_Y, fake_y,
+        G_gan_loss = self.generator_loss(self.D_R, fake_y,
                                          use_lsgan=self.use_lsgan)
         G_transform_loss = self.get_feature_loss(x, fake_y)
         G_loss = G_gan_loss + cycle_loss + G_transform_loss
-        D_Y_loss = self.discriminator_loss(self.D_Y, y, self.fake_y,
+        D_Y_loss = self.discriminator_loss(self.D_R, y, self.fake_r,
                                            use_lsgan=self.use_lsgan)
 
         # Y -> X
         fake_x = self.F(y)
-        F_gan_loss = self.generator_loss(self.D_X, fake_x,
+        F_gan_loss = self.generator_loss(self.D_S, fake_x,
                                          use_lsgan=self.use_lsgan)
         F_transform_loss = self.get_feature_loss(y, fake_x)
         F_loss = F_gan_loss + cycle_loss + F_transform_loss
-        D_X_loss = self.discriminator_loss(self.D_X, x, self.fake_x,
+        D_X_loss = self.discriminator_loss(self.D_S, x, self.fake_s,
                                            use_lsgan=self.use_lsgan)
 
         # summary
-        tf.summary.histogram('D_Y/true', self.D_Y(y))
-        tf.summary.histogram('D_Y/fake', self.D_Y(self.G(x)))
-        tf.summary.histogram('D_X/true', self.D_X(x))
-        tf.summary.histogram('D_X/fake', self.D_X(self.F(y)))
+        tf.summary.histogram('D_Y/true', self.D_R(y))
+        tf.summary.histogram('D_Y/fake', self.D_R(self.G(x)))
+        tf.summary.histogram('D_X/true', self.D_S(x))
+        tf.summary.histogram('D_X/fake', self.D_S(self.F(y)))
 
         tf.summary.scalar('loss/G', G_gan_loss)
         tf.summary.scalar('loss/G_transform', G_transform_loss)
@@ -188,10 +195,10 @@ class CycleGAN:
             return learning_step
 
         G_optimizer = make_optimizer(G_loss, self.G.variables, name='Adam_G')
-        D_Y_optimizer = make_optimizer(D_Y_loss, self.D_Y.variables,
+        D_Y_optimizer = make_optimizer(D_Y_loss, self.D_R.variables,
                                        name='Adam_D_Y')
         F_optimizer = make_optimizer(F_loss, self.F.variables, name='Adam_F')
-        D_X_optimizer = make_optimizer(D_X_loss, self.D_X.variables,
+        D_X_optimizer = make_optimizer(D_X_loss, self.D_S.variables,
                                        name='Adam_D_X')
 
         with tf.control_dependencies(
@@ -246,12 +253,13 @@ class CycleGAN:
         :param fake_y: translated x
         :return:
         """
+        loss = 0
+        if self.lambdas_features["identity"] > 0:
+            loss += self._identity_transform_loss(x, fake_y)
+        if self.lambdas_features["gaze"] > 0:
+            loss += self._gaze_transform_loss(x, fake_y)
+
         return 0
-
-
-class BasicFPGAN(CycleGAN):
-    def get_feature_loss(self, x, fake_y):
-        return self._identity_transform_loss(x, fake_y)
 
     def _identity_transform_loss(self, x, fake_y):
         """
@@ -261,6 +269,18 @@ class BasicFPGAN(CycleGAN):
         :param fake_y: G(x)
         :return:
         """
-        assert 'identity' in self.lambdas_features.keys()
         loss = tf.reduce_mean(tf.abs(fake_y - x))
         return self.lambdas_features['identity'] * loss
+
+    def _gaze_transform_loss(self, x, fake_y):
+        """
+        L2 transform loss on eye gaze. This ensures that fake_y is
+        not too different from x
+        :param x: input to generator
+        :param fake_y: G(x)
+        :return:
+        """
+        assert 'gaze' in self.lambdas_features.keys()
+        # TODO: implement
+        loss = 0
+        return self.lambdas_features['gaze'] * loss
