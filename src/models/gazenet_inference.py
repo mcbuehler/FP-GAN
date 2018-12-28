@@ -90,10 +90,9 @@ class GazeNetInference:
 
                         errors_angular += list(angular_error(gaze_true, gaze_pred))
 
-
                         counter += len(entry_evaluated['id'])
-                        if counter > 20:
-                            raise KeyboardInterrupt()
+                        # if counter > 20:
+                        #     raise KeyboardInterrupt()
 
                     except tf.errors.OutOfRangeError as e:
                         coord.request_stop()
@@ -102,8 +101,6 @@ class GazeNetInference:
                         coord.request_stop()
 
                 print("mean error (angular): ", np.mean(errors_angular))
-
-
 
 
 
@@ -121,13 +118,16 @@ def main():
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
     # Variables used for both directions
-    batch_size = 2
+    batch_size = cfg.get('batch_size')
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
 
     path_in = cfg.get("path_test")
-    saved_folder = "../checkpoints_gazenet/20181226-1756_debug_gazenet_m2u/saved_model"
-    inference = GazeNetInference(path_in, saved_folder, batch_size, image_size, dataset_class=DS.MPII)
+    checkpoint_folder = cfg.get('checkpoint_folder')
+    assert checkpoint_folder is not None and checkpoint_folder != ""
+    saved_folder = os.path.join(checkpoint_folder, "saved_model")
+    dataset_class_test = cfg.get('dataset_class_test')
+    inference = GazeNetInference(path_in, saved_folder, batch_size, image_size, dataset_class=dataset_class_test)
     inference.run()
 
 

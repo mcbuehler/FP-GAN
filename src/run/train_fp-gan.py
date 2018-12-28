@@ -36,6 +36,7 @@ S = cfg.get('S')
 R = cfg.get('R')
 checkpoints_dir = cfg.get('checkpoint_folder')
 n_steps = cfg.get('n_steps')
+path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
 load_model = checkpoints_dir is not None and checkpoints_dir != ""
 lambdas_features = {
@@ -72,14 +73,9 @@ def train():
                 beta1=beta1,
                 ngf=ngf,
                 tf_session=sess,
+                graph=graph,
+                path_saved_model_gaze=path_saved_model_gaze
             )
-            G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x = cycle_gan.model()
-            optimizers = cycle_gan.optimize(G_loss, D_Y_loss, F_loss, D_X_loss,
-                                            n_steps=n_steps)
-
-            summary_op = tf.summary.merge_all()
-            train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
-            saver = tf.train.Saver()
 
         if load_model:
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
@@ -91,24 +87,32 @@ def train():
             sess.run(tf.global_variables_initializer())
             step = 0
 
+        G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s = cycle_gan.model()
+        optimizers = cycle_gan.optimize(G_loss, D_R_loss, F_loss, D_S_loss,
+                                        n_steps=n_steps)
+
+        summary_op = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
+        saver = tf.train.Saver()
+
         coord = tf.train.Coordinator()
         # Collect errors
         errors = list()
 
-        fake_Y_pool = ImagePool(pool_size)
-        fake_X_pool = ImagePool(pool_size)
+        fake_R_pool = ImagePool(pool_size)
+        fake_S_pool = ImagePool(pool_size)
 
         while step < n_steps and not coord.should_stop():
             try:
-                fake_y_val, fake_x_val = sess.run([fake_y, fake_x])
+                fake_r_val, fake_s_val = sess.run([fake_r, fake_s])
 
                 _, G_loss_val, D_Y_loss_val, F_loss_val, D_X_loss_val, summary = (
                     sess.run(
-                        [optimizers, G_loss, D_Y_loss, F_loss, D_X_loss,
+                        [optimizers, G_loss, D_R_loss, F_loss, D_S_loss,
                          summary_op],
                         feed_dict={
-                            cycle_gan.fake_r: fake_Y_pool.query(fake_y_val),
-                            cycle_gan.fake_s: fake_X_pool.query(fake_x_val)}
+                            cycle_gan.fake_r: fake_R_pool.query(fake_r_val),
+                            cycle_gan.fake_s: fake_S_pool.query(fake_s_val)}
                     )
                 )
 

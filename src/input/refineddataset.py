@@ -49,7 +49,15 @@ class RefinedDataset(BaseDataset):
         file_stems = listdir(self.path_input, postfix=".jpg", return_postfix=False)
         # If we are dealing with refined images, we migth have a postfix "_clean"
         # But we are only interested in the image ids.
-        file_stems = list(set([re.sub(r'[^0-9]+', '', f) for f in file_stems]))
+        # r'(p\d\d_\d+).jpg'
+        # for f in files:
+        #     match = re.findall(self.id_pattern, f)
+        #     if match:
+        #         ids.append(match[0])
+        # TODO: maybe we need to remove the files that have _clean in the filename
+        # file_stems = list(set([re.sub(r'[^0-9]+', '', f) for f in file_stems]))
+        file_stems = filter(lambda f: "_clean" not in f, file_stems)
+        file_stems = list(set(file_stems))
         self.N = len(file_stems)
         file_stems = tf.constant(file_stems, dtype=tf.string,
                                  name="file_stems")

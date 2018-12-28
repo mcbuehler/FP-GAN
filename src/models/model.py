@@ -7,7 +7,7 @@ from models.generator import Generator
 from models.discriminator import Discriminator
 from input.dataset_manager import DatasetManager
 from util.enum_classes import DatasetClass as DS
-
+from util.model_manager import ModelManager
 
 REAL_LABEL = 0.9
 
@@ -27,6 +27,8 @@ class CycleGAN:
                  beta1=0.5,
                  ngf=64,
                  tf_session=None,
+                 graph=None,
+                 path_saved_model_gaze=''
                  ):
         """
         Args:
@@ -47,8 +49,6 @@ class CycleGAN:
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        assert 'identity' in self.lambdas_features.keys()
-        assert 'gaze' in self.lambdas_features.keys()
         # assert 'identity' in self.lambdas_features.keys()
         self.lambdas_features = lambdas_features
         self.use_lsgan = use_lsgan
@@ -60,6 +60,7 @@ class CycleGAN:
         self.S_train_file = S_train_file
         self.R_train_file = R_train_file
         self.tf_session = tf_session
+        input_shape = [batch_size, image_size[0],image_size[1], 3]
 
         self.is_training = tf.placeholder_with_default(True, shape=[],
                                                        name='is_training')
@@ -76,11 +77,9 @@ class CycleGAN:
                                  use_sigmoid=use_sigmoid)
 
         self.fake_s = tf.placeholder(tf.float32,
-                                     shape=[batch_size, image_size[0],
-                                            image_size[1], 3])
+                                     shape=input_shape)
         self.fake_r = tf.placeholder(tf.float32,
-                                     shape=[batch_size, image_size[0],
-                                            image_size[1], 3])
+                                     shape=input_shape)
         if self.S_train_file != '' and self.R_train_file != '':
             self.S_iterator = DatasetManager.get_dataset_iterator_for_path(
                 self.S_train_file,
@@ -100,45 +99,49 @@ class CycleGAN:
                 do_augmentation=True,  # TODO: should we augment?
                 dataset_class=DS.MPII
             )
+        if self.lambdas_features['gaze'] > 0:
+            assert path_saved_model_gaze != ''
+            model_manager = ModelManager(path_saved_model_gaze, input_shape)
+            self.gaze_in_tensor, self.gaze_out_tensor = model_manager.load_model(tf_session, graph)
 
     def model(self, fake_input=False):
         if fake_input:
             shape = [self.batch_size, *self.image_size, 3]
-            x = tf.placeholder(tf.float32, shape)
-            y = tf.placeholder(tf.float32, shape)
+            s = tf.placeholder(tf.float32, shape)
+            r = tf.placeholder(tf.float32, shape)
         else:
-            X_input_batch = self.S_iterator.get_next()
-            x = X_input_batch['eye']
+            S_input_batch = self.S_iterator.get_next()
+            s = S_input_batch['eye']
 
-            Y_input_batch = self.R_iterator.get_next()
-            y = Y_input_batch['eye']
+            R_input_batch = self.R_iterator.get_next()
+            r = R_input_batch['eye']
 
         # why don't we feed G(x) / F(y) here?
-        cycle_loss = self.cycle_consistency_loss(self.G, self.F, x, y)
+        cycle_loss = self.cycle_consistency_loss(self.G, self.F, s, r)
 
         # X -> Y
-        fake_y = self.G(x)
-        G_gan_loss = self.generator_loss(self.D_R, fake_y,
+        fake_r = self.G(s)
+        G_gan_loss = self.generator_loss(self.D_R, fake_r,
                                          use_lsgan=self.use_lsgan)
-        G_transform_loss = self.get_feature_loss(x, fake_y)
+        G_transform_loss = self.get_feature_loss(s, fake_r)
         G_loss = G_gan_loss + cycle_loss + G_transform_loss
-        D_Y_loss = self.discriminator_loss(self.D_R, y, self.fake_r,
+        D_Y_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
                                            use_lsgan=self.use_lsgan)
 
         # Y -> X
-        fake_x = self.F(y)
-        F_gan_loss = self.generator_loss(self.D_S, fake_x,
+        fake_s = self.F(r)
+        F_gan_loss = self.generator_loss(self.D_S, fake_s,
                                          use_lsgan=self.use_lsgan)
-        F_transform_loss = self.get_feature_loss(y, fake_x)
+        F_transform_loss = self.get_feature_loss(r, fake_s)
         F_loss = F_gan_loss + cycle_loss + F_transform_loss
-        D_X_loss = self.discriminator_loss(self.D_S, x, self.fake_s,
+        D_X_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
                                            use_lsgan=self.use_lsgan)
 
         # summary
-        tf.summary.histogram('D_Y/true', self.D_R(y))
-        tf.summary.histogram('D_Y/fake', self.D_R(self.G(x)))
-        tf.summary.histogram('D_X/true', self.D_S(x))
-        tf.summary.histogram('D_X/fake', self.D_S(self.F(y)))
+        tf.summary.histogram('D_Y/true', self.D_R(r))
+        tf.summary.histogram('D_Y/fake', self.D_R(self.G(s)))
+        tf.summary.histogram('D_X/true', self.D_S(s))
+        tf.summary.histogram('D_X/fake', self.D_S(self.F(r)))
 
         tf.summary.scalar('loss/G', G_gan_loss)
         tf.summary.scalar('loss/G_transform', G_transform_loss)
@@ -148,16 +151,16 @@ class CycleGAN:
         tf.summary.scalar('loss/D_X', D_X_loss)
         tf.summary.scalar('loss/cycle', cycle_loss)
 
-        tf.summary.image('X/input', utils.batch_convert2int(x))
-        tf.summary.image('X/generated', utils.batch_convert2int(self.G(x)))
+        tf.summary.image('X/input', utils.batch_convert2int(s))
+        tf.summary.image('X/generated', utils.batch_convert2int(self.G(s)))
         tf.summary.image('X/reconstruction',
-                         utils.batch_convert2int(self.F(self.G(x))))
-        tf.summary.image('Y/input', utils.batch_convert2int(y))
-        tf.summary.image('Y/generated', utils.batch_convert2int(self.F(y)))
+                         utils.batch_convert2int(self.F(self.G(s))))
+        tf.summary.image('Y/input', utils.batch_convert2int(r))
+        tf.summary.image('Y/generated', utils.batch_convert2int(self.F(r)))
         tf.summary.image('Y/reconstruction',
-                         utils.batch_convert2int(self.G(self.F(y))))
+                         utils.batch_convert2int(self.G(self.F(r))))
 
-        return G_loss, D_Y_loss, F_loss, D_X_loss, fake_y, fake_x
+        return G_loss, D_Y_loss, F_loss, D_X_loss, fake_r, fake_s
 
     def optimize(self, G_loss, D_Y_loss, F_loss, D_X_loss, n_steps=200000):
         def make_optimizer(loss, variables, name='Adam'):
@@ -258,8 +261,7 @@ class CycleGAN:
             loss += self._identity_transform_loss(x, fake_y)
         if self.lambdas_features["gaze"] > 0:
             loss += self._gaze_transform_loss(x, fake_y)
-
-        return 0
+        return loss
 
     def _identity_transform_loss(self, x, fake_y):
         """
@@ -281,6 +283,18 @@ class CycleGAN:
         :return:
         """
         assert 'gaze' in self.lambdas_features.keys()
-        # TODO: implement
-        loss = 0
+        assert self.gaze_in_tensor is not None
+        assert self.gaze_out_tensor is not None
+
+        x_evaluated, fake_y_evaluated = self.tf_session.run([x, fake_y])
+
+        x_pred = self.tf_session.run(
+            self.gaze_out_tensor,
+            {self.gaze_in_tensor: x_evaluated}
+        )
+        fake_y_pred = self.tf_session.run(
+            self.gaze_out_tensor,
+            {self.gaze_in_tensor: fake_y_evaluated}
+        )
+        loss = tf.reduce_mean(tf.squared_difference(x_pred, fake_y_pred))
         return self.lambdas_features['gaze'] * loss
