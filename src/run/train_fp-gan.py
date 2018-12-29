@@ -36,7 +36,7 @@ S = cfg.get('S')
 R = cfg.get('R')
 checkpoints_dir = cfg.get('checkpoint_folder')
 n_steps = cfg.get('n_steps')
-path_saved_model_gaze = cfg.get('path_saved_model_gaze')
+# path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
 load_model = checkpoints_dir is not None and checkpoints_dir != ""
 lambdas_features = {
@@ -74,8 +74,12 @@ def train():
                 ngf=ngf,
                 tf_session=sess,
                 graph=graph,
-                path_saved_model_gaze=path_saved_model_gaze
+                # path_saved_model_gaze=path_saved_model_gaze
             )
+
+        G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s = cycle_gan.model()
+        optimizers = cycle_gan.optimize(G_loss, D_R_loss, F_loss, D_S_loss,
+                                        n_steps=n_steps)
 
         if load_model:
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
@@ -86,10 +90,6 @@ def train():
         else:
             sess.run(tf.global_variables_initializer())
             step = 0
-
-        G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s = cycle_gan.model()
-        optimizers = cycle_gan.optimize(G_loss, D_R_loss, F_loss, D_S_loss,
-                                        n_steps=n_steps)
 
         summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
@@ -106,7 +106,7 @@ def train():
             try:
                 fake_r_val, fake_s_val = sess.run([fake_r, fake_s])
 
-                _, G_loss_val, D_Y_loss_val, F_loss_val, D_X_loss_val, summary = (
+                _, G_loss_val, D_R_loss_val, F_loss_val, D_S_loss_val, summary = (
                     sess.run(
                         [optimizers, G_loss, D_R_loss, F_loss, D_S_loss,
                          summary_op],
@@ -126,11 +126,11 @@ def train():
                     logging.info('  Time: {}'.format(
                         datetime.now().strftime('%b-%d-%I%M%p-%G')))
                     logging.info('  G_loss   : {}'.format(G_loss_val))
-                    logging.info('  D_Y_loss : {}'.format(D_Y_loss_val))
+                    logging.info('  D_Y_loss : {}'.format(D_R_loss_val))
                     logging.info('  F_loss   : {}'.format(F_loss_val))
-                    logging.info('  D_X_loss : {}'.format(D_X_loss_val))
+                    logging.info('  D_X_loss : {}'.format(D_S_loss_val))
 
-                if step % 10000 == 0:
+                if step > 0 and step % 10000 == 0:
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
                                            global_step=step)

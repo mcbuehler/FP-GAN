@@ -67,12 +67,12 @@ class CycleGAN:
 
         self.G = Generator('G', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size)
-        self.D_R = Discriminator('D_Y',
+        self.D_R = Discriminator('D_R',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
         self.F = Generator('F', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size)
-        self.D_S = Discriminator('D_X',
+        self.D_S = Discriminator('D_S',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
 
@@ -87,7 +87,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=True,  # TODO: should we augment?
+                do_augmentation=False,  # TODO: should we augment?
                 dataset_class=DS.UNITY
             )
             self.R_iterator = DatasetManager.get_dataset_iterator_for_path(
@@ -96,7 +96,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=True,  # TODO: should we augment?
+                do_augmentation=False,  # TODO: should we augment?
                 dataset_class=DS.MPII
             )
         if self.lambdas_features['gaze'] > 0:
@@ -125,7 +125,7 @@ class CycleGAN:
                                          use_lsgan=self.use_lsgan)
         G_transform_loss = self.get_feature_loss(s, fake_r)
         G_loss = G_gan_loss + cycle_loss + G_transform_loss
-        D_Y_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
+        D_R_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
                                            use_lsgan=self.use_lsgan)
 
         # Y -> X
@@ -134,35 +134,35 @@ class CycleGAN:
                                          use_lsgan=self.use_lsgan)
         F_transform_loss = self.get_feature_loss(r, fake_s)
         F_loss = F_gan_loss + cycle_loss + F_transform_loss
-        D_X_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
+        D_S_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
                                            use_lsgan=self.use_lsgan)
 
         # summary
-        tf.summary.histogram('D_Y/true', self.D_R(r))
-        tf.summary.histogram('D_Y/fake', self.D_R(self.G(s)))
-        tf.summary.histogram('D_X/true', self.D_S(s))
-        tf.summary.histogram('D_X/fake', self.D_S(self.F(r)))
+        tf.summary.histogram('D_R/true', self.D_R(r))
+        tf.summary.histogram('D_R/fake', self.D_R(self.G(s)))
+        tf.summary.histogram('D_S/true', self.D_S(s))
+        tf.summary.histogram('D_S/fake', self.D_S(self.F(r)))
 
         tf.summary.scalar('loss/G', G_gan_loss)
         tf.summary.scalar('loss/G_transform', G_transform_loss)
-        tf.summary.scalar('loss/D_Y', D_Y_loss)
+        tf.summary.scalar('loss/D_R', D_R_loss)
         tf.summary.scalar('loss/F', F_gan_loss)
         tf.summary.scalar('loss/F_transform', F_transform_loss)
-        tf.summary.scalar('loss/D_X', D_X_loss)
+        tf.summary.scalar('loss/D_S', D_S_loss)
         tf.summary.scalar('loss/cycle', cycle_loss)
 
-        tf.summary.image('X/input', utils.batch_convert2int(s))
-        tf.summary.image('X/generated', utils.batch_convert2int(self.G(s)))
-        tf.summary.image('X/reconstruction',
+        tf.summary.image('S/input', utils.batch_convert2int(s))
+        tf.summary.image('S/generated', utils.batch_convert2int(self.G(s)))
+        tf.summary.image('S/reconstruction',
                          utils.batch_convert2int(self.F(self.G(s))))
-        tf.summary.image('Y/input', utils.batch_convert2int(r))
-        tf.summary.image('Y/generated', utils.batch_convert2int(self.F(r)))
-        tf.summary.image('Y/reconstruction',
+        tf.summary.image('R/input', utils.batch_convert2int(r))
+        tf.summary.image('R/generated', utils.batch_convert2int(self.F(r)))
+        tf.summary.image('R/reconstruction',
                          utils.batch_convert2int(self.G(self.F(r))))
 
-        return G_loss, D_Y_loss, F_loss, D_X_loss, fake_r, fake_s
+        return G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s
 
-    def optimize(self, G_loss, D_Y_loss, F_loss, D_X_loss, n_steps=200000):
+    def optimize(self, G_loss, D_R_loss, F_loss, D_S_loss, n_steps=200000):
         def make_optimizer(loss, variables, name='Adam'):
             """ Adam optimizer with learning rate 0.0002 for the first 100k
             steps (~100 epochs)
@@ -198,11 +198,11 @@ class CycleGAN:
             return learning_step
 
         G_optimizer = make_optimizer(G_loss, self.G.variables, name='Adam_G')
-        D_Y_optimizer = make_optimizer(D_Y_loss, self.D_R.variables,
-                                       name='Adam_D_Y')
+        D_Y_optimizer = make_optimizer(D_R_loss, self.D_R.variables,
+                                       name='Adam_D_R')
         F_optimizer = make_optimizer(F_loss, self.F.variables, name='Adam_F')
-        D_X_optimizer = make_optimizer(D_X_loss, self.D_S.variables,
-                                       name='Adam_D_X')
+        D_X_optimizer = make_optimizer(D_S_loss, self.D_S.variables,
+                                       name='Adam_D_S')
 
         with tf.control_dependencies(
                 [G_optimizer, D_Y_optimizer, F_optimizer, D_X_optimizer]):

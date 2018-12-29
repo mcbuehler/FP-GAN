@@ -91,10 +91,11 @@ class RefinedDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    path_input = '../data/refined_Unity2MPII/'
+    path_input = '../data/refined_Unity2MPII_Train/'
+    #path_input = '../data/refined_MPII2Unity_Train/'
 
     dataset = RefinedDataset(path_input, batch_size=10, image_size=(72, 120),
-                             do_augmentation=True)
+                             do_augmentation=False)
     iterator = dataset.get_iterator()
     next_element = iterator.get_next()
 
@@ -108,7 +109,7 @@ if __name__ == "__main__":
                 from matplotlib.pyplot import imshow
                 from util.gaze import draw_gaze
                 import matplotlib.pyplot as plt
-                for j in range(10):
+                for j in range(30):
 
                     img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
                     # img = elem['eye'][j]
