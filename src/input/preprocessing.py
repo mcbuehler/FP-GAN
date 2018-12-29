@@ -138,6 +138,10 @@ class UnityPreprocessor(Preprocessor):
         """Use annotations to segment eyes and calculate gaze direction."""
         result_dict = dict()
 
+        # Convert look vector to gaze direction in polar angles
+        gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
+        result_dict['gaze'] = gaze
+
         ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
         iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
         oh, ow = self._eye_image_shape
@@ -196,10 +200,6 @@ class UnityPreprocessor(Preprocessor):
         clean_eye -= 1.0
 
         result_dict['clean_eye'] = clean_eye
-
-        # Convert look vector to gaze direction in polar angles
-        gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
-        result_dict['gaze'] = gaze
 
         # Start augmentation
         if self.do_augmentation:

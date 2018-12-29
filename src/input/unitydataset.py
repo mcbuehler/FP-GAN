@@ -25,6 +25,11 @@ class UnityDataset(BaseDataset):
         self.unity_preprocessor = UnityPreprocessor(do_augmentation=do_augmentation,
                                                     eye_image_shape=self.image_size)
 
+        self.gaze_filter_range ={
+                'pitch': (-0.7, 0.2),
+                'yaw': (-0.7, 0.7)
+            }
+
     def _read_image(self, filename):
         image = cv.imread(filename, cv.IMREAD_COLOR)
         # CV loads the image as BGR
@@ -54,10 +59,19 @@ class UnityDataset(BaseDataset):
                                  name="file_stems")
         return file_stems
 
+    def _is_in_gaze_range(self, gaze):
+        gfr_p, gfr_y = self.gaze_filter_range['pitch'], self.gaze_filter_range['yaw']
+        return tf.logical_and(
+            tf.logical_and(gfr_p[0] < gaze[0], gaze[0] < gfr_p[1]),
+            tf.logical_and(gfr_y[0] < gaze[1], gaze[1] < gfr_y[1])
+        )
+
     def get_iterator(self):
         file_stems = self._get_filestems_tensor()
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
         dataset = dataset.map(self._get_tensors, num_parallel_calls=self.num_parallel_calls)
+
+        dataset = dataset.filter(lambda s: self._is_in_gaze_range(s['gaze']))
 
         iterator = self._prepare_iterator(dataset)
         self._iterator_ready_info()
@@ -100,7 +114,9 @@ if __name__ == "__main__":
         for i in range(10):
             print(i, "/", n_batches)
             try:
+
                 next_element = iterator.get_next()
+
                 elem = sess.run(next_element)
                 from matplotlib.pyplot import imshow
                 from util.gaze import draw_gaze
@@ -120,4 +136,5 @@ if __name__ == "__main__":
                     plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
                     plt.show()
             except Exception as e:
-                print("Value Error. Skipping.")
+                print(e)
+                exit(-1)

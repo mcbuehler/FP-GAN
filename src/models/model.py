@@ -87,7 +87,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=False,  # TODO: should we augment?
+                do_augmentation=False,
                 dataset_class=DS.UNITY
             )
             self.R_iterator = DatasetManager.get_dataset_iterator_for_path(
@@ -96,7 +96,7 @@ class CycleGAN:
                 batch_size,
                 shuffle=True,
                 repeat=True,
-                do_augmentation=False,  # TODO: should we augment?
+                do_augmentation=False,
                 dataset_class=DS.MPII
             )
         if self.lambdas_features['gaze'] > 0:
