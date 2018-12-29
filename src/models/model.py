@@ -271,7 +271,9 @@ class CycleGAN:
         :param fake_y: G(x)
         :return:
         """
-        loss = tf.reduce_mean(tf.abs(fake_y - x))
+        x_grayscale = tf.reduce_mean(x, 3)
+        fake_y_grayscale = tf.reduce_mean(fake_y, 3)
+        loss = tf.reduce_mean(tf.abs(fake_y_grayscale - x_grayscale))
         return self.lambdas_features['identity'] * loss
 
     def _gaze_transform_loss(self, x, fake_y):
