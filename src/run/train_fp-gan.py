@@ -36,6 +36,7 @@ S = cfg.get('S')
 R = cfg.get('R')
 checkpoints_dir = cfg.get('checkpoint_folder')
 n_steps = cfg.get('n_steps')
+filter_gaze = cfg.get('filter_gaze')
 # path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
 load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -74,6 +75,7 @@ def train():
                 ngf=ngf,
                 tf_session=sess,
                 graph=graph,
+                filter_gaze=filter_gaze
                 # path_saved_model_gaze=path_saved_model_gaze
             )
 

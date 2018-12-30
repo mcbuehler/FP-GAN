@@ -17,18 +17,19 @@ class CycleGAN:
                  S_train_file='',
                  R_train_file='',
                  batch_size=1,
-                 image_size=(78, 120),
+                 image_size=(72, 120),
                  use_lsgan=True,
                  norm='instance',
                  lambda1=10,
                  lambda2=10,
-                 lambdas_features={"identity": 5, "gaze": 5, "landmarks": 5},
+                 lambdas_features={"identity": 0, "gaze": 0, "landmarks": 0},
                  learning_rate=2e-4,
                  beta1=0.5,
                  ngf=64,
                  tf_session=None,
                  graph=None,
-                 path_saved_model_gaze=''
+                 path_saved_model_gaze='',
+                 filter_gaze=False
                  ):
         """
         Args:
@@ -88,7 +89,8 @@ class CycleGAN:
                 shuffle=True,
                 repeat=True,
                 do_augmentation=False,
-                dataset_class=DS.UNITY
+                dataset_class=DS.UNITY,
+                filter_gaze=filter_gaze
             )
             self.R_iterator = DatasetManager.get_dataset_iterator_for_path(
                 self.R_train_file,
@@ -97,9 +99,11 @@ class CycleGAN:
                 shuffle=True,
                 repeat=True,
                 do_augmentation=False,
-                dataset_class=DS.MPII
+                dataset_class=DS.MPII,
+                filter_gaze=filter_gaze
             )
         if self.lambdas_features['gaze'] > 0:
+            print(self.lambdas_features)
             assert path_saved_model_gaze != ''
             model_manager = ModelManager(path_saved_model_gaze, input_shape)
             self.gaze_in_tensor, self.gaze_out_tensor = model_manager.load_model(tf_session, graph)

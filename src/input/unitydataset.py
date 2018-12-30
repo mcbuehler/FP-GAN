@@ -19,16 +19,11 @@ class UnityDataset(BaseDataset):
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False):
-        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder)
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False, filter_gaze=False):
+        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
 
         self.unity_preprocessor = UnityPreprocessor(do_augmentation=do_augmentation,
                                                     eye_image_shape=self.image_size)
-
-        self.gaze_filter_range ={
-                'pitch': (-0.7, 0.2),
-                'yaw': (-0.7, 0.7)
-            }
 
     def _read_image(self, filename):
         image = cv.imread(filename, cv.IMREAD_COLOR)
@@ -59,20 +54,10 @@ class UnityDataset(BaseDataset):
                                  name="file_stems")
         return file_stems
 
-    def _is_in_gaze_range(self, gaze):
-        gfr_p, gfr_y = self.gaze_filter_range['pitch'], self.gaze_filter_range['yaw']
-        return tf.logical_and(
-            tf.logical_and(gfr_p[0] < gaze[0], gaze[0] < gfr_p[1]),
-            tf.logical_and(gfr_y[0] < gaze[1], gaze[1] < gfr_y[1])
-        )
-
     def get_iterator(self):
         file_stems = self._get_filestems_tensor()
         dataset = tf.data.Dataset.from_tensor_slices(file_stems)
         dataset = dataset.map(self._get_tensors, num_parallel_calls=self.num_parallel_calls)
-
-        dataset = dataset.filter(lambda s: self._is_in_gaze_range(s['gaze']))
-
         iterator = self._prepare_iterator(dataset)
         self._iterator_ready_info()
         return iterator
