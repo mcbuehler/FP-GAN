@@ -1,6 +1,7 @@
 import os
 import re
 from shutil import copyfile
+from os import symlink
 import numpy as np
 
 
@@ -10,15 +11,11 @@ class DatasetSplitFactory:
                  path_train,
                  path_validation,
                  path_test,
-                 id_pattern,
-                 test_size=10000,
-                 validation_size=10000):
+                 id_pattern):
         self.path_source = path_source
         self.path_train = path_train
         self.path_validation = path_validation
         self.path_test = path_test
-        self.test_size = test_size
-        self.validation_size = validation_size
         self.id_pattern = id_pattern
 
     @staticmethod
@@ -41,10 +38,10 @@ class DatasetSplitFactory:
             copyfile(file_json, self.create_filepath(path_to, id, 'json'))
         print("Copied {} images".format(len(ids)))
 
-    def create_and_save(self, ids, size, from_path, to_path):
+    def create_and_save(self, all_ids, size, from_path, to_path):
         print("Generating {} samples...".format(size))
-        samples = np.random.choice(list(set(ids)), size=size,
-                                        replace=False)
+        samples = np.random.choice(list(set(all_ids)), size=size,
+                                   replace=False)
         self.copy_samples(samples, from_path, to_path)
         return samples
 
@@ -59,6 +56,17 @@ class DatasetSplitFactory:
         ids = list(set(ids))
         print("Processing {} ids".format(len(ids)))
         return ids
+
+    def run(self):
+        raise NotImplementedError("Use a subclass!")
+
+
+class StandardDatasetSplitFactory(DatasetSplitFactory):
+    def __init__(self, test_size=10000,
+                 validation_size=10000, **kwargs):
+        super().__init__(**kwargs)
+        self.test_size = test_size
+        self.validation_size = validation_size
 
     def run(self):
         # Get all ids from the source folder (without suffix or _clean)
@@ -80,21 +88,56 @@ class DatasetSplitFactory:
         self.copy_samples(unused_ids, self.path_source, self.path_train)
 
 
+class MPIIDatasetSplitFactory(DatasetSplitFactory):
+    def __init__(self, test_person_identifiers, validation_person_identifiers, **kwargs):
+        super().__init__(**kwargs)
+        self.test_person_identifiers = test_person_identifiers
+        self.validation_person_identifiers = validation_person_identifiers
+
+    def select_and_save(self, all_ids, prefix_list, from_path, to_path):
+        test_ids = [id for id in all_ids if id[:3] in prefix_list]
+        self.copy_samples(test_ids, from_path, to_path)
+        return test_ids
+
+    def run_for_person_identifiers(self, test_person_identifiers=list(), validation_person_identifiers=list()):
+        # Get all ids from the source folder (without suffix or _clean)
+        ids = self.read_ids(self.path_source)
+
+        # Create and save test data
+
+        test_ids = self.select_and_save(ids, test_person_identifiers, self.path_source, self.path_test)
+
+        validation_ids = self.select_and_save(ids, validation_person_identifiers,
+                                                 self.path_source, self.path_validation)
+
+        # Create and save training data after excluding both test and
+        # validation ids
+        unused_ids = [id for id in ids if
+                      id not in validation_ids
+                      and id not in test_ids]
+        self.copy_samples(unused_ids, self.path_source, self.path_train)
+
+    def run(self):
+        self.run_for_person_identifiers(self.test_person_identifiers, self.validation_person_identifiers)
+
+
 def run_refined_m2u():
-    factory = DatasetSplitFactory(
+    test_ids = ["p0{}".format(i) for i in range(5, 10)]
+    validation_ids = ["p{}".format(i) for i in range(10, 15)]
+    factory = MPIIDatasetSplitFactory(
         path_source="../data/refined_MPII2Unity/",
         path_train="../data/refined_MPII2Unity_Train/",
         path_validation="../data/refined_MPII2Unity_Val/",
         path_test="../data/refined_MPII2Unity_Test/",
-        test_size=5000,
-        validation_size=5000,
+        test_person_identifiers=test_ids,
+        validation_person_identifiers=validation_ids,
         id_pattern=r'(p\d\d_\d+).jpg'
     )
     factory.run()
 
 
 def run_refined_u2m():
-    factory = DatasetSplitFactory(
+    factory = StandardDatasetSplitFactory(
         path_source="../data/refined_Unity2MPII/",
         path_train="../data/refined_Unity2MPII_Train/",
         path_validation="../data/refined_Unity2MPII_Val/",
@@ -107,7 +150,7 @@ def run_refined_u2m():
 
 
 def run_unityeyes():
-    factory = DatasetSplitFactory(
+    factory = StandardDatasetSplitFactory(
         path_source="../data/UnityEyes/",
         path_train="../data/UnityEyesTrain/",
         path_validation="../data/UnityEyesVal/",
