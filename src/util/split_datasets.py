@@ -3,6 +3,7 @@ import re
 from shutil import copyfile
 from os import symlink
 import numpy as np
+import logging
 
 
 class DatasetSplitFactory:
@@ -88,7 +89,7 @@ class StandardDatasetSplitFactory(DatasetSplitFactory):
         self.copy_samples(unused_ids, self.path_source, self.path_train)
 
 
-class MPIIDatasetSplitFactory(DatasetSplitFactory):
+class RefinedMPIIDatasetSplitFactory(DatasetSplitFactory):
     def __init__(self, test_person_identifiers, validation_person_identifiers, **kwargs):
         super().__init__(**kwargs)
         self.test_person_identifiers = test_person_identifiers
@@ -121,10 +122,57 @@ class MPIIDatasetSplitFactory(DatasetSplitFactory):
         self.run_for_person_identifiers(self.test_person_identifiers, self.validation_person_identifiers)
 
 
+class MPIIDatasetSplitFactory(DatasetSplitFactory):
+    def __init__(self, test_person_identifiers, validation_person_identifiers, **kwargs):
+        super().__init__(**kwargs)
+        self.test_person_identifiers = test_person_identifiers
+        self.validation_person_identifiers = validation_person_identifiers
+
+    def run(self):
+        n_train, n_val, n_test = self.run_for_person_identifiers(self.test_person_identifiers, self.validation_person_identifiers)
+        print("Written train / val / test: {} / {} / {}".format(n_train, n_val, n_test))
+
+    def write_all(self, data, person_identifier, out_file):
+        n = 0
+        g = out_file.create_group(person_identifier)
+        for attr in data[person_identifier]:
+            d = data[person_identifier][attr]
+            g.create_dataset(attr, data=d)
+            # for i in data[attr]:
+            #     out_file[attr].write(data[attr][i])
+        n += data[person_identifier]['gaze'].shape[0]
+        return n
+
+    def run_for_person_identifiers(self, test_person_identifiers, validation_person_identifiers):
+        import h5py
+        file_train = h5py.File(self.path_train, 'w')
+        file_val = h5py.File(self.path_validation, 'w')
+        file_test = h5py.File(self.path_test, 'w')
+        n_train = 0
+        n_val = 0
+        n_test = 0
+
+        with h5py.File(self.path_source, 'r') as hf:
+            person_identifiers = hf.keys()
+            for person_identifier in person_identifiers:
+                if person_identifier in test_person_identifiers:
+                    n_test += self.write_all(hf, person_identifier, file_test)
+                elif person_identifier in validation_person_identifiers:
+                    n_val += self.write_all(hf, person_identifier, file_val)
+                else:
+                    n_train += self.write_all(hf, person_identifier, file_train)
+
+        file_train.close()
+        file_val.close()
+        file_test.close()
+
+        return n_train, n_val, n_test
+
+
 def run_refined_m2u():
     test_ids = ["p0{}".format(i) for i in range(5, 10)]
     validation_ids = ["p{}".format(i) for i in range(10, 15)]
-    factory = MPIIDatasetSplitFactory(
+    factory = RefinedMPIIDatasetSplitFactory(
         path_source="../data/refined_MPII2Unity/",
         path_train="../data/refined_MPII2Unity_Train/",
         path_validation="../data/refined_MPII2Unity_Val/",
@@ -162,9 +210,24 @@ def run_unityeyes():
     factory.run()
 
 
+def run_refined_m():
+    test_ids = ["p0{}".format(i) for i in range(5, 10)]
+    validation_ids = ["p{}".format(i) for i in range(10, 15)]
+    factory = MPIIDatasetSplitFactory(
+        path_source="../data/MPIIFaceGaze/single-eye-right_zhang.h5",
+        path_train="../data/MPIIFaceGaze/train-right.h5",
+        path_validation="../data/MPIIFaceGaze/val-right.h5",
+        path_test="../data/MPIIFaceGaze/test-right.h5",
+        test_person_identifiers=test_ids,
+        validation_person_identifiers=validation_ids,
+        id_pattern=None
+    )
+    factory.run()
+
 
 if __name__ == "__main__":
     # run_unityeyes()
     # run_refined_u2m()
-    run_refined_m2u()
+    # run_refined_m2u()
+    run_refined_m()
 
