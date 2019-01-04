@@ -336,12 +336,9 @@ def _batch_norm(input, is_training):
             momentum=0.9,
             scale=True,
             training=is_training
+            # training=True
 
         )
-        # return tf.contrib.layers.batch_norm(input,
-        #                                     ecay=0.9,
-        #                                     scale=True,
-        #                                     training=is_training)
 
 
 def _instance_norm(input):
