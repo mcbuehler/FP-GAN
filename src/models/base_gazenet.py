@@ -54,7 +54,7 @@ class BaseGazeNet:
 
         self.name = name
         self.norm = norm
-        self.reuse = False
+        self.reuse = tf.AUTO_REUSE
         self.use_sigmoid = use_sigmoid
 
         self.use_sigmoid = use_sigmoid
@@ -153,7 +153,6 @@ class BaseGazeNet:
             return learning_step
 
         update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-
         with tf.control_dependencies(update_ops):
             return make_optimizer(loss, name='Adam') # self.variables,
 

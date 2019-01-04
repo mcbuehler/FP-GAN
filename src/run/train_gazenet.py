@@ -55,15 +55,16 @@ class Validation:
         # train_writer.add_summary(summary, step)
         # train_writer.flush()
 
-    def perform_validation_step(self, sess, step, train_writer):
+    def perform_validation_step(self, sess, step, train_writer, n_batches=-1):
         logging.info("Preparing validation...")
-        # Now we calculate the errors
+        # Don't perform on full dataset every time (too time-consuming)
+        n_batches = n_batches if n_batches > 0 else self.n_batches_per_epoch
 
-        logging.info("Running {} batches...".format(self.n_batches_per_epoch))
+        logging.info("Running {} batches...".format(n_batches))
         results = [sess.run(
             [self.outputs['error_angular'],
              self.loss, self.summary_op])
-            for i in range(self.n_batches_per_epoch)]
+            for i in range(n_batches)]
 
         # loss_values is a list
         # [[angular, mse, summary], [angular, mse, summary],...]
@@ -227,20 +228,23 @@ def train():
                     )
 
                     # if step > 0 and step % 5000 == 0:
-                if step > 0 and step % 5000 == 0:
+                if step >= 0 and step % 5000 == 0:
                     model_manager.save_model(sess, gazenet)
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
                                            global_step=step)
                     validation_within.perform_validation_step(sess,
                                                              step,
-                                                             train_writer)
+                                                             train_writer,
+                                                             n_batches=15)
                     validation_unity.perform_validation_step(sess,
                                                              step,
-                                                             train_writer)
+                                                             train_writer,
+                                                             n_batches=15)
                     validation_mpii.perform_validation_step(sess,
                                                              step,
-                                                             train_writer)
+                                                             train_writer,
+                                                            n_batches=15)
                 step += 1
         except KeyboardInterrupt:
             logging.info('Interrupted')
@@ -252,6 +256,16 @@ def train():
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
                                    global_step=step)
             logging.info("Model saved in file: %s" % save_path)
+
+            validation_within.perform_validation_step(sess,
+                                                      step,
+                                                      train_writer)
+            validation_unity.perform_validation_step(sess,
+                                                     step,
+                                                     train_writer)
+            validation_mpii.perform_validation_step(sess,
+                                                    step,
+                                                    train_writer)
             # When done, ask the threads to stop.
             coord.request_stop()
             # coord.join(threads)

@@ -70,7 +70,7 @@ class GazeNet(BaseGazeNet):
                 fc1000, name="out", reuse=self.reuse
             )
         # What about a layer that adds a restriction on output?
-        self.reuse = True
+        # self.reuse = True
         self.variables = tf.get_collection(
             tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
 
