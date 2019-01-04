@@ -11,7 +11,7 @@ class DataLoader:
     def __init__(self, path):
         self.path = path
 
-    def get_data(self, identifiers=None):
+    def get_data(self, identifiers):
         raise NotImplementedError()
 
 
@@ -24,7 +24,7 @@ class MPIIDataLoader(DataLoader):
             samples.append((person_identifier, index))
         return samples
 
-    def get_data(self, identifiers=None):
+    def get_data(self, identifiers):
         """
 
         :param path:
@@ -34,7 +34,6 @@ class MPIIDataLoader(DataLoader):
         out = dict()
 
         with h5py.File(self.path, 'r') as hf:
-            identifiers = self.sample_identifiers(hf) if identifiers is None else identifiers
             for i, (person_identifier, index) in enumerate(identifiers):
                 out[identifiers[i]] = {
                     'eye': hf[person_identifier]['image'][index][..., ::-1],
@@ -49,12 +48,11 @@ class RefinedMPIIDataLoader(DataLoader):
         index = np.random.randint(0, 1000, len(person_identifiers))
         return [(person_identifiers[i], index[i]) for i in range(len(index))]
 
-    def get_data(self, identifiers=None):
+    def get_data(self, identifiers):
         def get_file_path(path, person_identifier, index, postfix):
             return os.path.join(path, "{}_{}.{}".format(person_identifier, index, postfix))
 
         out = dict()
-        identifiers = self.sample_identifiers() if identifiers is None else identifiers
         for i, (person_identifier, index) in enumerate(identifiers):
             img = misc.imread(get_file_path(self.path, person_identifier, index, 'jpg'))
             with open(get_file_path(self.path, person_identifier, index, 'json'), 'r') as f:
@@ -66,7 +64,49 @@ class RefinedMPIIDataLoader(DataLoader):
         return out
 
 
+class UnityDataLoader(DataLoader):
+
+    def get_data(self, identifiers):
+        from input.preprocessing import UnityPreprocessor
+
+        def get_file_path(path,  index, postfix):
+            return os.path.join(path, "{}.{}".format(index, postfix))
+
+        out = dict()
+        for i, file_stem in enumerate(identifiers):
+            img = misc.imread(get_file_path(self.path, file_stem, 'jpg'))
+            with open(get_file_path(self.path, file_stem, 'json'), 'r') as f:
+                json_data = ujson.load(f)
+            out[identifiers[i]] = {
+                'eye': img,
+                # TODO: see difference to original gaze
+                'gaze': UnityPreprocessor.look_vec_to_gaze_vec(json_data)[0]
+            }
+        return out
+
+
+class RefinedUnityDataLoader(UnityDataLoader):
+    def get_data(self, identifiers=None):
+        def get_file_path(path,  index, postfix):
+            return os.path.join(path, "{}.{}".format(index, postfix))
+
+        out = dict()
+        for i, file_stem in enumerate(identifiers):
+            img = misc.imread(get_file_path(self.path, file_stem, 'jpg'))
+            img_orig = misc.imread(get_file_path(self.path, "{}_clean".format(file_stem), 'jpg'))
+            with open(get_file_path(self.path, file_stem, 'json'), 'r') as f:
+                json_data = ujson.load(f)
+            out[identifiers[i]] = {
+                'eye': img,
+                'eye_original': img_orig,
+                'gaze': json_data['gaze'],
+            }
+        return out
+
+
 if __name__ == "__main__":
-    identifiers = [('p00', 0), ('p00', 10)]
-    # mpii_data = get_mpii('../data/MPIIFaceGaze/single-eye-right_zhang.h5', identifiers)
-    get_refined_mpii('../data/refined_MPII2Unity/', identifiers)
+    file_stems = [1]
+    dl = UnityDataLoader('../data/UnityEyes')
+    print(dl.get_data(file_stems)[1]['gaze'])
+    dl = RefinedUnityDataLoader('../data/refined_Unity2MPII')
+    print(dl.get_data(file_stems)[1]['gaze'])

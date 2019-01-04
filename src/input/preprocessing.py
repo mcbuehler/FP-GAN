@@ -47,7 +47,8 @@ class Preprocessor:
         return np.asarray([np.radians(h_pitch), np.radians(h_yaw)],
                                    dtype=np.float32)
 
-    def _look_vec_to_gaze_vec(self, json_data):
+    @staticmethod
+    def look_vec_to_gaze_vec(json_data):
         look_vec = np.array(eval(json_data['eye_details']['look_vec']))[:3]
         look_vec[0] = -look_vec[0]
 
@@ -139,7 +140,7 @@ class UnityPreprocessor(Preprocessor):
         result_dict = dict()
 
         # Convert look vector to gaze direction in polar angles
-        gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
+        gaze, original_gaze = self.look_vec_to_gaze_vec(json_data)
         result_dict['gaze'] = gaze
 
         ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
