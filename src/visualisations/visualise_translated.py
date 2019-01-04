@@ -68,6 +68,10 @@ class M2UVisualisation:
         # plt.show()
         plt.savefig('../visualisations/mpii_vs_refined-mpii.png')
 
+        g_mpii = [mpii_data[(person_identifier, img_index)]['gaze'] for
+                  person_identifier, img_index in identifiers]
+        g_m2u = [m2u_data[(person_identifier, img_index)]['gaze'] for
+                 person_identifier, img_index in identifiers]
 
 if __name__ == "__main__":
     m2u_visualisation = M2UVisualisation()
