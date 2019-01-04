@@ -105,8 +105,6 @@ class GazeNetInference:
 
 
 def main():
-    from util.enum_classes import DatasetClass as DS
-
     FLAGS = tf.flags.FLAGS
     tf.flags.DEFINE_string('config', None, 'input configuration')
     tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
