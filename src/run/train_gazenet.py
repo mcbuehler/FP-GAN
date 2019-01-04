@@ -83,6 +83,39 @@ class Validation:
         self._log_result(loss_mean, loss_std, angular_error, step)
 
 
+def get_validations(gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size):
+    all_validations = list()
+    if path_validation_within is not None:
+        all_validations.append(Validation(
+            gazenet,
+            Mode.VALIDATION_WITHIN,
+            path_validation_within,
+            image_size,
+            batch_size,
+            dataset_class_train
+        )
+        )
+    if path_validation_unity is not None:
+        all_validations.append(Validation(
+                gazenet,
+                Mode.VALIDATION_UNITY,
+                path_validation_unity,
+                image_size,
+                batch_size,
+                dataset_class_validation_unity
+            ))
+    if path_validation_mpii is not None:
+        all_validations.append(Validation(
+        gazenet,
+        Mode.VALIDATION_MPII,
+        path_validation_mpii,
+        image_size,
+        batch_size,
+        dataset_class_validation_mpii
+    ))
+    return all_validations
+
+
 def train():
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
@@ -167,29 +200,8 @@ def train():
         # Validation graphs
         # We do this after tf.summary_merge_all because we don't want to create
         # summaries for every step
-        validation_within = Validation(
-            gazenet,
-            Mode.VALIDATION_WITHIN,
-            path_validation_within,
-            image_size,
-            batch_size,
-            dataset_class_train
-        )
-        validation_unity = Validation(
-            gazenet,
-            Mode.VALIDATION_UNITY,
-            path_validation_unity,
-            image_size,
-            batch_size,
-            dataset_class_validation_unity
-        )
-        validation_mpii = Validation(
-            gazenet,
-            Mode.VALIDATION_MPII,
-            path_validation_mpii,
-            image_size,
-            batch_size,
-            dataset_class_validation_mpii
+        all_validations = get_validations(
+            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size
         )
 
         if load_model:# and False:
@@ -228,23 +240,16 @@ def train():
                     )
 
                     # if step > 0 and step % 5000 == 0:
-                if step >= 0 and step % 5000 == 0:
+                if 0 < step < n_steps and step % 5000 == 0:
                     model_manager.save_model(sess, gazenet)
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
                                            global_step=step)
-                    validation_within.perform_validation_step(sess,
-                                                             step,
-                                                             train_writer,
-                                                             n_batches=15)
-                    validation_unity.perform_validation_step(sess,
-                                                             step,
-                                                             train_writer,
-                                                             n_batches=15)
-                    validation_mpii.perform_validation_step(sess,
-                                                             step,
-                                                             train_writer,
-                                                            n_batches=15)
+                    for validation in all_validations:
+                        validation.perform_validation_step(sess,
+                                                           step,
+                                                           train_writer,
+                                                           n_batches=15)
                 step += 1
         except KeyboardInterrupt:
             logging.info('Interrupted')
@@ -256,16 +261,12 @@ def train():
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
                                    global_step=step)
             logging.info("Model saved in file: %s" % save_path)
-
-            validation_within.perform_validation_step(sess,
-                                                      step,
-                                                      train_writer)
-            validation_unity.perform_validation_step(sess,
-                                                     step,
-                                                     train_writer)
-            validation_mpii.perform_validation_step(sess,
-                                                    step,
-                                                    train_writer)
+            for validation in all_validations:
+                validation.perform_validation_step(
+                    sess,
+                    step,
+                    train_writer
+                )
             # When done, ask the threads to stop.
             coord.request_stop()
             # coord.join(threads)
