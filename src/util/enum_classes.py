@@ -6,6 +6,7 @@ import os
 
 class Mode:
     TRAIN = "train"
+    TEST = "test"
     VALIDATION_WITHIN = "val_within"
     VALIDATION_UNITY = "val_unity"
     VALIDATION_MPII = "val_mpii"
