@@ -6,7 +6,7 @@ import numpy as np
 
 
 class MPIIGenerator:
-    def __init__(self, file, shuffle=False):
+    def __init__(self, file, shuffle=False, rgb=True):
         self.file = file
         self.eye_shape = self._get_eye_shape()
         # tuple with (person_identifier, index) for all people and
@@ -14,6 +14,7 @@ class MPIIGenerator:
         # e.g. ('p01', 5) refers to sample 5 for person 'p01'
         self.all_identifiers = self._create_all_identifiers()
         self.N = len(self.all_identifiers)
+        self.rgb = rgb
         if shuffle:
             # We want to draw samples from different people in random order
             self.all_identifiers = list(set(self.all_identifiers))
@@ -21,10 +22,17 @@ class MPIIGenerator:
     def __call__(self):
         with h5py.File(self.file, 'r') as hf:
             for person_identifier, index in self.all_identifiers:
+                clean_eye = hf[person_identifier]['image'][index]
+                eye = hf[person_identifier]['image'][index]
+                if not self.rgb:
+                    # convert rgb to b/w
+                    clean_eye = np.mean(hf[person_identifier]['image'][index], axis=2)
+                    eye = np.mean(hf[person_identifier]['image'][index], axis=2)
+
                 yield {
-                    'eye': hf[person_identifier]['image'][index],
+                    'eye': eye,
                     # For MPII we only have clean eyes for the moment
-                    'clean_eye': hf[person_identifier]['image'][index],
+                    'clean_eye': clean_eye,
                     'gaze': hf[person_identifier]['gaze'][index],
                     # 'landmarks': hf[person_identifier]['landmarks'][index],
                     'head': hf[person_identifier]['head'][index],
@@ -58,14 +66,15 @@ class MPIIDataset(BaseDataset):
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False, filter_gaze=False):
-        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, rgb=True, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False, filter_gaze=False):
+        super().__init__(path_input, image_size, batch_size, rgb, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
 
         self.preprocessor = MPIIPreprocessor(eye_image_shape=self.image_size)
 
     def get_iterator(self, repeat=True):
-        generator = MPIIGenerator(self.path_input, shuffle=self.shuffle)
+        generator = MPIIGenerator(self.path_input, shuffle=self.shuffle, rgb=self.rgb)
         self.N = generator.N
+        image_shape = [*generator.eye_shape, 3] if self.rgb else generator.eye_shape
 
         dataset = tf.data.Dataset.from_generator(
             generator,
@@ -76,8 +85,8 @@ class MPIIDataset(BaseDataset):
              'head': tf.float32,
              'id': tf.string
              },
-            {'eye': tf.TensorShape([*generator.eye_shape, 3]),
-             'clean_eye': tf.TensorShape([*generator.eye_shape, 3]),
+            {'eye': tf.TensorShape(image_shape),
+             'clean_eye': tf.TensorShape(image_shape),
              'gaze': tf.TensorShape([2]),
              # 'landmarks': tf.TensorShape([18, 2]),
              'head': tf.TensorShape([2]),
@@ -115,7 +124,7 @@ class MPIIDataset(BaseDataset):
 if __name__ == "__main__":
     path_input = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
 
-    dataset = MPIIDataset(path_input, batch_size=10, image_size=(72, 120))
+    dataset = MPIIDataset(path_input, batch_size=10, image_size=(72, 120), rgb=False)
     iterator = dataset.get_iterator()
     next_element = iterator.get_next()
 

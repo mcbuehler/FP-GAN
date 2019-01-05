@@ -20,23 +20,11 @@ class RefinedDataset(BaseDataset):
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False, filter_gaze=False):
-        super().__init__(path_input, image_size, batch_size, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, rgb=True, shuffle=True, buffer_size=1000, do_augmentation=False, repeat=True, drop_remainder=False, filter_gaze=False):
+        super().__init__(path_input, image_size, batch_size, rgb, shuffle, buffer_size, do_augmentation, repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
 
         self.preprocessor = RefinedPreprocessor(do_augmentation=do_augmentation,
                                                 eye_image_shape=self.image_size)
-
-    def _read_image(self, filename):
-        image = cv.imread(filename, cv.IMREAD_COLOR)
-        # CV loads the image as BGR
-        # Convert image to RGB
-        image = image[..., ::-1]
-        return image
-
-    def _read_json(self, filename):
-        with open(filename, 'r') as f:
-            json_data = ujson.load(f)
-        return json_data
 
     def _read_and_preprocess(self, file_stem, path, preprocessor):
         file_path_no_prefix = os.path.join(path, file_stem.decode('utf-8'))
@@ -94,8 +82,8 @@ if __name__ == "__main__":
     path_input = '../data/refined_Unity2MPII_Train/'
     #path_input = '../data/refined_MPII2Unity_Train/'
 
-    dataset = RefinedDataset(path_input, batch_size=10, image_size=(72, 120),
-                             do_augmentation=False)
+    dataset = RefinedDataset(path_input, batch_size=1, image_size=(72, 120),
+                             do_augmentation=False, rgb=False)
     iterator = dataset.get_iterator()
     next_element = iterator.get_next()
 

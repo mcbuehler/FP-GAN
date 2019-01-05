@@ -31,9 +31,13 @@ class Preprocessor:
 
     @staticmethod
     def equalize(image):  # Proper colour image intensity equalization
-        ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
-        ycrcb[:, :, 0] = cv.equalizeHist(ycrcb[:, :, 0])
-        output = cv.cvtColor(ycrcb, cv.COLOR_YCrCb2RGB)
+        if len(image.shape) == 2:
+            # We have a b/w image
+            output = cv.equalizeHist(image)
+        else:
+            ycrcb = cv.cvtColor(image, cv.COLOR_RGB2YCrCb)
+            ycrcb[:, :, 0] = cv.equalizeHist(ycrcb[:, :, 0])
+            output = cv.cvtColor(ycrcb, cv.COLOR_YCrCb2RGB)
         return output
 
     def _headpose_to_radians(self, json_data):
@@ -132,7 +136,6 @@ class UnityPreprocessor(Preprocessor):
                  eye_image_shape=(72, 120)):
         super().__init__(do_augmentation=do_augmentation,
                          eye_image_shape=eye_image_shape)
-        self._short_name = 'UnityEyes'
         self.do_augmentation = do_augmentation
 
     def preprocess(self, full_image, json_data):
@@ -241,7 +244,11 @@ class MPIIPreprocessor(Preprocessor):
         super().__init__(do_augmentation=False, eye_image_shape=eye_image_shape)
 
     def preprocess(self, image):
-        image = self.bgr2rgb(image)
+        if len(image.shape) == 2:
+            # b/w image
+            pass
+        else:
+            image = self.bgr2rgb(image)
 
         if self._eye_image_shape is not None:
             oh, ow = self._eye_image_shape

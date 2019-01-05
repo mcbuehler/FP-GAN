@@ -1,6 +1,8 @@
 import logging
 import multiprocessing
 import tensorflow as tf
+import cv2 as cv
+import ujson
 
 
 class BaseDataset:
@@ -12,10 +14,11 @@ class BaseDataset:
     # This will be set when creating the iterator.
     N = None
 
-    def __init__(self, path_input, image_size=(72, 120), batch_size=32, shuffle=True, buffer_size=1000, testing=False, repeat=True, num_parallel_calls=None, drop_remainder=False, filter_gaze=False):
+    def __init__(self, path_input, image_size=(72, 120), batch_size=32, rgb=True, shuffle=True, buffer_size=1000, testing=False, repeat=True, num_parallel_calls=None, drop_remainder=False, filter_gaze=False):
         self.path_input = path_input
         self.image_size = image_size
         self.batch_size = batch_size
+        self.rgb = rgb
         self.shuffle = shuffle
         self.buffer_size = buffer_size
         self.testing = testing
@@ -29,6 +32,21 @@ class BaseDataset:
                     'pitch': (-0.7, 0.2),
                     'yaw': (-0.7, 0.7)
                 }
+
+    def _read_image(self, filename):
+        if self.rgb:
+            image = cv.imread(filename, cv.IMREAD_COLOR)
+            # CV loads the image as BGR
+            # Convert image to RGB
+            image = image[..., ::-1]
+        else:
+            image = cv.imread(filename, cv.IMREAD_GRAYSCALE)
+        return image
+
+    def _read_json(self, filename):
+        with open(filename, 'r') as f:
+            json_data = ujson.load(f)
+        return json_data
 
     def _is_in_gaze_range(self, gaze):
         gfr_p, gfr_y = self.gaze_filter_range['pitch'], self.gaze_filter_range['yaw']

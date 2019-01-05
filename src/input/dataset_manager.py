@@ -27,6 +27,7 @@ class DatasetManager:
             path,
             image_size,
             batch_size,
+            rgb=True,
             shuffle=True,
             repeat=True,
             do_augmentation=False,
@@ -35,7 +36,7 @@ class DatasetManager:
             filter_gaze=False,
     ):
         dataset = cls._get_dataset_class(dataset_class)
-        dataset = dataset(path, image_size, batch_size, shuffle=shuffle, do_augmentation=do_augmentation,
+        dataset = dataset(path, image_size, batch_size, rgb=rgb, shuffle=shuffle, do_augmentation=do_augmentation,
                 repeat=repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
         iterator = dataset.get_iterator()
         iterator.N = dataset.N

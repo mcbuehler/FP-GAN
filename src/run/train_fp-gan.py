@@ -22,6 +22,7 @@ image_size = [cfg.get('image_height'),
               cfg.get('image_width')]
 use_lsgan = cfg.get('use_lsgan')
 norm = cfg.get('norm')
+rgb = cfg.get('rgb')
 lambda1 = cfg.get('lambda1')
 lambda2 = cfg.get('lambda2')
 lambda_identity = cfg.get('lambda_identity')
@@ -67,6 +68,7 @@ def train():
                 image_size=image_size,
                 use_lsgan=use_lsgan,
                 norm=norm,
+                rgb=rgb,
                 lambda1=lambda1,
                 lambda2=lambda2,
                 lambdas_features=lambdas_features,
