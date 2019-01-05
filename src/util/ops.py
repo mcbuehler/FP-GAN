@@ -166,8 +166,9 @@ def Ck(input, k, slope=0.2, stride=2, reuse=False, norm='instance',
       4D tensor
     """
     with tf.variable_scope(name, reuse=reuse):
+        shape = [4, 4, input.get_shape()[3], k]
         weights = _weights("weights",
-                           shape=[4, 4, input.get_shape()[3], k])
+                           shape=shape)
 
         conv = tf.nn.conv2d(input, weights,
                             strides=[1, stride, stride, 1], padding='SAME')

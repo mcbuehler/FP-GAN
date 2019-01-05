@@ -101,7 +101,7 @@ class MPIIDataset(BaseDataset):
         return iterator
 
     def _get_tensors(self, entry):
-        eye_preprocessed = tf.py_func(lambda image:
+        eye = tf.py_func(lambda image:
                                           self.preprocessor.preprocess(image),
                                           [entry['eye']],
                                           Tout=[tf.float32]
@@ -109,11 +109,18 @@ class MPIIDataset(BaseDataset):
         # We need to set shapes because we need to know them when we
         # build the execution graph (images only).
         # The output tensor does not need a shape at this point.
-        image_shape = (*self.image_size, 3)
-        eye_preprocessed.set_shape(image_shape)
+        clean_eye = eye
+
+        if self.rgb:
+            image_shape = (*self.image_size, 3)
+        else:
+            image_shape = (*self.image_size, 1)
+            clean_eye, eye = self._expand_dims(clean_eye, eye)
+
+        eye.set_shape(image_shape)
         return {
-            'eye': eye_preprocessed,
-            'clean_eye': eye_preprocessed,
+            'eye': eye,
+            'clean_eye': eye,
             'gaze': entry['gaze'],
             # 'landmarks': entry['landmarks'],
             'head': entry['head'],
@@ -131,8 +138,6 @@ if __name__ == "__main__":
     with tf.Session() as sess:
         # n_batches = int(dataset.N / dataset.batch_size)
         for i in range(10):
-            # print(i, "/", n_batches)
-
             elem = sess.run(next_element)
             print(np.max(elem["gaze"], axis=1))
             print(np.mean(np.max(np.abs(elem["gaze"]), axis=1)))
@@ -152,8 +157,4 @@ if __name__ == "__main__":
                 imshow(img)
                 plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
                 plt.show()
-
-            # imshow(elem['eye'][0])
-            # ply.show()
-            # gazes = np.concatenate([gazes, elem['gaze']], 0)
 

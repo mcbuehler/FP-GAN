@@ -35,15 +35,6 @@ class RefinedDataset(BaseDataset):
 
     def _get_filestems_tensor(self):
         file_stems = listdir(self.path_input, postfix=".jpg", return_postfix=False)
-        # If we are dealing with refined images, we migth have a postfix "_clean"
-        # But we are only interested in the image ids.
-        # r'(p\d\d_\d+).jpg'
-        # for f in files:
-        #     match = re.findall(self.id_pattern, f)
-        #     if match:
-        #         ids.append(match[0])
-        # TODO: maybe we need to remove the files that have _clean in the filename
-        # file_stems = list(set([re.sub(r'[^0-9]+', '', f) for f in file_stems]))
         file_stems = filter(lambda f: "_clean" not in f, file_stems)
         file_stems = list(set(file_stems))
         self.N = len(file_stems)
@@ -72,7 +63,13 @@ class RefinedDataset(BaseDataset):
         # We need to set shapes because we need to know them when we
         # build the execution graph (images only).
         # The output tensor does not need a shape at this point.
-        image_shape = (*self.image_size, 3)
+
+        if self.rgb:
+            image_shape = (*self.image_size, 3)
+        else:
+            image_shape = (*self.image_size, 1)
+            clean_eye, eye = self._expand_dims(clean_eye, eye)
+
         clean_eye.set_shape(image_shape)
         eye.set_shape(image_shape)
         return {'id': file_stem, 'clean_eye': clean_eye, 'eye': eye, 'gaze': gaze}

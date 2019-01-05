@@ -63,7 +63,12 @@ class UnityDataset(BaseDataset):
         # We need to set shapes because we need to know them when we
         # build the execution graph (images only).
         # The output tensor does not need a shape at this point.
-        image_shape = (*self.image_size, 3)
+        if self.rgb:
+            image_shape = (*self.image_size, 3)
+        else:
+            image_shape = (*self.image_size, 1)
+            clean_eye, eye = self._expand_dims(clean_eye, eye)
+
         clean_eye.set_shape(image_shape)
         eye.set_shape(image_shape)
         return {

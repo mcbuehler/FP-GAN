@@ -55,6 +55,9 @@ class BaseDataset:
             tf.logical_and(gfr_y[0] < gaze[1], gaze[1] < gfr_y[1])
         )
 
+    def _expand_dims(self, tensor1, tensor2):
+        return tf.expand_dims(tensor1, -1), tf.expand_dims(tensor2, -1)
+
     def _prepare_iterator(self, dataset):
         if self.filter_gaze:
             dataset = dataset.filter(

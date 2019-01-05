@@ -5,13 +5,15 @@ import util.utils as utils
 
 
 class Generator:
-  def __init__(self, name, is_training, ngf=64, norm='instance', image_size=None):
+  def __init__(self, name, is_training, ngf=64, norm='instance', image_size=None, rgb=True):
     self.name = name
     self.reuse = False
+    # self.reuse = tf.AUTO_REUSE
     self.ngf = ngf
     self.norm = norm
     self.is_training = is_training
     self.image_size = image_size
+    self.rgb = rgb
 
   def __call__(self, input):
     """
@@ -42,10 +44,11 @@ class Generator:
       u32 = ops.uk(u64, self.ngf, is_training=self.is_training, norm=self.norm,
                    reuse=self.reuse, name='u32', output_size=self.image_size)         # (?, w, h, 32)
 
+      n_output_channels = input.shape[3]  # This can be 1 or 3
       # conv layer
       # Note: the paper said that ReLU and _norm were used
       # but actually tanh was used and no _norm here
-      output = ops.c7s1_k(u32, 3, norm=None,
+      output = ops.c7s1_k(u32, n_output_channels, norm=None,
                           activation='tanh', reuse=self.reuse, name='output')           # (?, w, h, 3)
     # set reuse=True for next call
     self.reuse = True

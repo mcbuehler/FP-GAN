@@ -57,23 +57,27 @@ class CycleGAN:
         use_sigmoid = not use_lsgan
         self.batch_size = batch_size
         self.image_size = image_size
+        self.rgb = rgb
         self.learning_rate = learning_rate
         self.beta1 = beta1
         self.S_train_file = S_train_file
         self.R_train_file = R_train_file
         self.tf_session = tf_session
-        input_shape = [batch_size, image_size[0],image_size[1], 3]
+        if rgb:
+            input_shape = [batch_size, *image_size, 3]
+        else:
+            input_shape = [batch_size, *image_size, 1]
 
         self.is_training = tf.placeholder_with_default(True, shape=[],
                                                        name='is_training')
 
         self.G = Generator('G', self.is_training, ngf=ngf, norm=norm,
-                           image_size=image_size)
+                           image_size=image_size, rgb=rgb)
         self.D_R = Discriminator('D_R',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
         self.F = Generator('F', self.is_training, ngf=ngf, norm=norm,
-                           image_size=image_size)
+                           image_size=image_size, rgb=rgb)
         self.D_S = Discriminator('D_S',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
@@ -106,20 +110,21 @@ class CycleGAN:
                 filter_gaze=filter_gaze
             )
         if self.lambdas_features['gaze'] > 0:
-            print(self.lambdas_features)
             assert path_saved_model_gaze != ''
             model_manager = ModelManager(path_saved_model_gaze, input_shape)
             self.gaze_in_tensor, self.gaze_out_tensor = model_manager.load_model(tf_session, graph)
 
     def model(self, fake_input=False):
         if fake_input:
-            shape = [self.batch_size, *self.image_size, 3]
+            if self.rgb:
+                shape = [self.batch_size, *self.image_size, 3]
+            else:
+                shape = [self.batch_size, *self.image_size, 1]
             s = tf.placeholder(tf.float32, shape)
             r = tf.placeholder(tf.float32, shape)
         else:
             S_input_batch = self.S_iterator.get_next()
             s = S_input_batch['eye']
-
             R_input_batch = self.R_iterator.get_next()
             r = R_input_batch['eye']
 
