@@ -11,20 +11,24 @@ from models.model import CycleGAN
 
 
 class GeneratorExport:
-    def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf):
+    def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf, rgb):
         self.checkpoint_dir = checkpoint_dir
         self.norm = norm
         self.ngf = ngf
         self.image_size = image_size
         self.batch_size = batch_size
+        self.rgb=rgb
 
     def run(self, model_name, U2M=True):
         graph = tf.Graph()
-        input_dimensions = [self.batch_size, *self.image_size, 3]
+        if self.rgb:
+            input_dimensions = [self.batch_size, *self.image_size, 3]
+        else:
+            input_dimensions = [self.batch_size, *self.image_size, 1]
 
         with graph.as_default():
             cycle_gan = CycleGAN(ngf=self.ngf, norm=self.norm,
-                                 image_size=self.image_size)
+                                 image_size=self.image_size, rgb=self.rgb)
 
             input_image = tf.placeholder(tf.float32, shape=input_dimensions,
                                          name='input_image')

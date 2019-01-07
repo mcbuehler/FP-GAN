@@ -16,6 +16,7 @@ from util.config_loader import Config
 from util.enum_classes import TranslationDirection as Direction, \
     DatasetClass as DS
 
+
 def run_export(cfg, U2M=True):
     """
     Exports the model in given direction (default U2M).
@@ -31,7 +32,8 @@ def run_export(cfg, U2M=True):
                   cfg.get('image_width')],
         batch_size=cfg.get("batch_size_inference"),
         norm=cfg.get("norm"),
-        ngf=cfg.get("ngf")
+        ngf=cfg.get("ngf"),
+        rgb=cfg.get("rgb")
     )
 
     generator_export = GeneratorExport(**default_args)
@@ -60,20 +62,25 @@ def run_inference(cfg, U2M=True):
     batch_size = cfg.get('batch_size_inference')
     image_size = [cfg.get('image_height'),
                   cfg.get('image_width')]
+    rgb = cfg.get('rgb')
+
+    shared_args = dict(
+        batch_size=batch_size, image_size=image_size, rgb=rgb
+    )
     # Variables dependent on direction
     if U2M:
         path_in = cfg.get("S")
         model_path = cfg.get("path_model_u2m")
         output_folder = cfg.get('path_refined_u2m')
-        inference = GeneratorInference(path_in, model_path, output_folder,
-                                       batch_size, image_size, dataset_class=DS.UNITY)
+        inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
+                                       dataset_class=DS.UNITY, **shared_args)
         inference.run()
     else:
         path_in = cfg.get("R")
         model_path = cfg.get("path_model_m2u")
         output_folder = cfg.get('path_refined_m2u')
-        inference = GeneratorInference(path_in, model_path, output_folder,
-                                       batch_size, image_size, dataset_class=DS.MPII)
+        inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
+                                       dataset_class=DS.MPII, **shared_args)
         inference.run()
 
 

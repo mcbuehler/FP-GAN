@@ -21,13 +21,14 @@ from util.files import create_folder_if_not_exists
 
 
 class GeneratorInference:
-    def __init__(self, path_in, model_path, output_folder, batch_size, image_size, dataset_class):
+    def __init__(self, path_in, model_path, output_folder, batch_size, rgb, image_size, dataset_class):
         self.path_in = path_in
         self.model_path = model_path
         self.output_folder = output_folder
         self.batch_size = batch_size
         self.image_size = image_size
         self.dataset_class = dataset_class
+        self.rgb = rgb
 
         create_folder_if_not_exists(self.output_folder)
 
@@ -96,7 +97,8 @@ class GeneratorInference:
                     repeat=False,
                     do_augmentation=False,
                     drop_remainder=True,
-                    dataset_class=self.dataset_class
+                    dataset_class=self.dataset_class,
+                    rgb=self.rgb
                 )
 
                 coord = tf.train.Coordinator()
@@ -143,34 +145,6 @@ class GeneratorInference:
                         logging.info('Interrupted')
                         coord.request_stop()
 
-
-def main(unused_argv):
-    FLAGS = tf.flags.FLAGS
-    tf.flags.DEFINE_string('config', None, 'input configuration')
-    tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-    tf.flags.DEFINE_boolean('U2M', True, 'Direction of inference (M2U or U2M)')
-
-    if FLAGS.config is None:
-        print("Please provide config file (--config PATH).")
-        exit()
-
-    # Load the config variables
-    cfg = Config(FLAGS.config, FLAGS.section)
-    # Variables used for both directions
-    batch_size = cfg.get('batch_size_inference')
-    image_size = [cfg.get('image_height'),
-                  cfg.get('image_width')]
-    # Variables dependent on direction
-    if FLAGS.U2M:
-        path_in = cfg.get("S")
-        model_path = cfg.get("path_model_u2m")
-        output_folder = cfg.get('path_refined_u2m')
-        inference = GeneratorInference(path_in, model_path, output_folder,
-                                       batch_size, image_size)
-        inference.run()
-    else:
-        logging.warning("Not implemented. Exiting.")
-        exit(0)
 
 
 if __name__ == '__main__':
