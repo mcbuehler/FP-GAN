@@ -20,7 +20,7 @@ tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
 
 class Validation:
     def __init__(self, model, mode, path, image_size, batch_size, dataset_class,
-            rgb):
+            rgb, normalise_gaze):
         self.iterator = DatasetManager.get_dataset_iterator_for_path(
             path,
             image_size,
@@ -29,7 +29,8 @@ class Validation:
             repeat=True,
             do_augmentation=False,
             dataset_class=dataset_class,
-            rgb=rgb)
+            rgb=rgb,
+            normalise_gaze=normalise_gaze)
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
         self.model = model
@@ -85,7 +86,7 @@ class Validation:
         self._log_result(loss_mean, loss_std, angular_error, step)
 
 
-def get_validations(gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb):
+def get_validations(gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb, normalise_gaze):
     all_validations = list()
     if path_validation_within is not None:
         all_validations.append(Validation(
@@ -95,7 +96,8 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
             image_size,
             batch_size,
             dataset_class_train,
-            rgb=rgb
+            rgb=rgb,
+            normalise_gaze=normalise_gaze
         )
         )
     if path_validation_unity is not None:
@@ -106,7 +108,8 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
                 image_size,
                 batch_size,
                 dataset_class_validation_unity,
-            rgb=rgb
+            rgb=rgb,
+            normalise_gaze=normalise_gaze
             ))
     if path_validation_mpii is not None:
         all_validations.append(Validation(
@@ -116,7 +119,8 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
         image_size,
         batch_size,
         dataset_class_validation_mpii,
-            rgb=rgb
+            rgb=rgb,
+            normalise_gaze=normalise_gaze
     ))
     return all_validations
 
@@ -144,6 +148,7 @@ def train():
     dataset_class_validation_mpii = cfg.get('dataset_class_validation_mpii')
     do_augmentation = cfg.get('augmentation')
     rgb = cfg.get('rgb')
+    normalise_gaze = cfg.get('normalise_gaze')
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -193,7 +198,8 @@ def train():
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
                 shuffle=True, repeat=True, do_augmentation=do_augmentation,
-                dataset_class=dataset_class_train, rgb=rgb
+                dataset_class=dataset_class_train, rgb=rgb,
+                normalise_gaze=normalise_gaze
             )
             _, loss_train = gazenet.get_loss(
                 train_iterator, is_training=True,
@@ -211,7 +217,7 @@ def train():
         # We do this after tf.summary_merge_all because we don't want to create
         # summaries for every step
         all_validations = get_validations(
-            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb=rgb
+            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb=rgb, normalise_gaze=normalise_gaze
         )
 
         if load_model:# and False:

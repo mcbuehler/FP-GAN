@@ -24,9 +24,9 @@ class DatasetManager:
     @classmethod
     def get_dataset_iterator_for_path(
             cls,
-            path,
-            image_size,
-            batch_size,
+            path_input,
+            image_size=(36,60),
+            batch_size=128,
             rgb=True,
             shuffle=True,
             repeat=True,
@@ -34,10 +34,11 @@ class DatasetManager:
             drop_remainder=False,
             dataset_class=None,
             filter_gaze=False,
+            normalise_gaze=False,
     ):
         dataset = cls._get_dataset_class(dataset_class)
-        dataset = dataset(path, image_size, batch_size, rgb=rgb, shuffle=shuffle, do_augmentation=do_augmentation,
-                repeat=repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze)
+        dataset = dataset(path_input=path_input, image_size=image_size, batch_size=batch_size, rgb=rgb, shuffle=shuffle, do_augmentation=do_augmentation,
+                          repeat=repeat, drop_remainder=drop_remainder, filter_gaze=filter_gaze, normalise_gaze=normalise_gaze)
         iterator = dataset.get_iterator()
         iterator.N = dataset.N
         return iterator
