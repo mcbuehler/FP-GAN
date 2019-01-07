@@ -6,17 +6,27 @@ from util.gaze import draw_gaze
 import os
 
 
-class M2UVisualisation:
-    def __init__(self):
-        self.path_mpii = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
-        self.path_m2u = '../data/refined_MPII2Unity/'
-        self.dl_mpii = MPIIDataLoader(self.path_mpii)
-        self.dl_refined_mpii = RefinedMPIIDataLoader(self.path_m2u)
-        self.do_draw_gaze = True
+class Visualisation:
+    def __init__(self,
+                 dl_original,
+                 dl_refined,
+                 name_out='mpii_vs_refined-mpii.png',
+                 do_draw_gaze=True):
+        self.name_out = name_out
+        self.dl_original = dl_original
+        self.dl_refined = dl_refined
+        self.do_draw_gaze = do_draw_gaze
 
-    def sample_identifiers(self):
+    def visualise(self, identifiers):
+        raise NotImplementedError()
+
+
+class M2UVisualisation(Visualisation):
+
+    @staticmethod
+    def sample_identifiers(path_original):
         samples = list()
-        with h5py.File(self.path_mpii, 'r') as hf:
+        with h5py.File(path_original, 'r') as hf:
             for person_identifier in hf:
                 n = hf[person_identifier]['image'].shape[0]
                 index = np.random.randint(0, n)
@@ -31,13 +41,11 @@ class M2UVisualisation:
         )
 
     def get_data(self, identifiers=None):
-        mpii_data = self.dl_mpii.get_data(identifiers)
-        m2u_data = self.dl_refined_mpii.get_data(identifiers)
+        mpii_data = self.dl_original.get_data(identifiers)
+        m2u_data = self.dl_refined.get_data(identifiers)
         return  mpii_data, m2u_data
 
-    def visualise(self, identifiers=None):
-        if identifiers is None:
-            identifiers = self.sample_identifiers()
+    def visualise(self, identifiers):
         N = len(identifiers)
         fig, axes = plt.subplots(nrows=N, ncols=2, figsize=(20, 20))
 
@@ -67,26 +75,21 @@ class M2UVisualisation:
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
         # plt.show()
-        plt.savefig('../visualisations/mpii_vs_refined-mpii.png')
+        plt.savefig(os.path.join('../visualisations/', self.name_out))
 
 
-class U2MVisualisation:
-    def __init__(self):
-        self.path_original = '../data/UnityEyes'
-        self.path_refined = '../data/refined_Unity2MPII/'
-        self.dl_original = UnityDataLoader(self.path_original)
-        self.dl_refined = RefinedUnityDataLoader(self.path_refined)
-        self.do_draw_gaze = True
+class U2MVisualisation(Visualisation):
 
-    def sample_identifiers(self):
+    @staticmethod
+    def sample_identifiers(path_original, path_refined):
         from util.files import listdir
-        file_stems = listdir(self.path_original, postfix='.jpg',
+        file_stems = listdir(path_original, postfix='.jpg',
                              return_postfix=False)
         index = list()
         c = 0
         while c < 15:
             sample = np.random.choice(file_stems)
-            if os.path.exists(os.path.join(self.path_refined, "{}.jpg".format(sample))):
+            if os.path.exists(os.path.join(path_refined, "{}.jpg".format(sample))):
                 index.append(sample)
                 c += 1
         return index
@@ -101,9 +104,7 @@ class U2MVisualisation:
     def get_data(self, identifiers=None):
         return self.dl_original.get_data(identifiers), self.dl_refined.get_data(identifiers)
 
-    def visualise(self, identifiers=None):
-        if identifiers is None:
-            identifiers = self.sample_identifiers()
+    def visualise(self, identifiers):
         N = len(identifiers)
         fig, axes = plt.subplots(nrows=N, ncols=3, figsize=(20, 20))
 
@@ -138,15 +139,36 @@ class U2MVisualisation:
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
         # plt.show()
-        plt.savefig('../visualisations/unity_vs_refined-unity.png')
+        plt.savefig(os.path.join('../visualisations/', self.name_out))
+
 
 if __name__ == "__main__":
-    m2u_visualisation = M2UVisualisation()
-    # identifiers = [
-    #     ('p00', 0), ('p00', 1), ('p00', 10), ('p00', 11)
-    # ]
-    identifiers = None
-    # m2u_visualisation.visualise(identifiers)
+    M2U = True
+    U2M = True
 
-    u2m_visualisation = U2MVisualisation()
-    u2m_visualisation.visualise(identifiers)
+    if M2U:
+        path_original = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
+        path_refined = '../data/refined_MPII2Unity/'
+        dl_original = MPIIDataLoader(path_original)
+        dl_refined = RefinedMPIIDataLoader(path_refined)
+
+        m2u_visualisation = M2UVisualisation(
+            dl_original=dl_original,
+            dl_refined=dl_refined,
+            name_out='mpii_vs_refined_bw.png')
+        identifiers = M2UVisualisation.sample_identifiers(path_original)
+        m2u_visualisation.visualise(identifiers)
+
+    if U2M:
+        path_original = '../data/UnityEyes'
+        path_refined = '../data/refined_Unity2MPII/'
+        dl_original = UnityDataLoader(path_original)
+        dl_refined = RefinedUnityDataLoader(path_refined)
+
+        identifiers = U2MVisualisation.sample_identifiers(path_original, path_refined)
+
+        u2m_visualisation = U2MVisualisation(
+            dl_original=dl_original,
+            dl_refined=dl_refined,
+            name_out='unity_vs_refined_bw.png')
+        u2m_visualisation.visualise(identifiers)
