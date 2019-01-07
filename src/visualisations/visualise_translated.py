@@ -63,14 +63,19 @@ class M2UVisualisation(Visualisation):
             row = i
             axes[row, 0].axis("off")
             axes[row, 1].axis("off")
-            img_mpii = mpii_data[(person_identifier, img_index)]['eye']
-            img_m2u = m2u_data[(person_identifier, img_index)]['eye']
+            img_original = mpii_data[(person_identifier, img_index)]['eye']
+            img_refined = m2u_data[(person_identifier, img_index)]['eye']
             if self.do_draw_gaze:
-                img_mpii = self.dg(img_mpii, mpii_data[(person_identifier, img_index)]['gaze'])
-                img_m2u = self.dg(img_m2u, m2u_data[(person_identifier, img_index)]['gaze'])
+                img_original = self.dg(img_original, mpii_data[(person_identifier, img_index)]['gaze'])
+                img_refined = self.dg(img_refined, m2u_data[(person_identifier, img_index)]['gaze'])
 
-            axes[row, 0].imshow(img_mpii)
-            axes[row, 1].imshow(img_m2u)
+            if len(img_refined.shape) == 2:
+                # We have a b/w image
+                cmap = 'gray'
+            else:
+                cmap = None
+            axes[row, 0].imshow(img_original, cmap=cmap)
+            axes[row, 1].imshow(img_refined, cmap=cmap)
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
@@ -132,9 +137,14 @@ class U2MVisualisation(Visualisation):
                 img_original = self.dg(img_original, original_data[file_stem]['gaze'])
                 img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], length=100)
 
-            axes[row, 0].imshow(img_original_full)
-            axes[row, 1].imshow(img_original)
-            axes[row, 2].imshow(img_refined)
+            if len(img_refined.shape) == 2:
+                # We have a b/w image
+                cmap = 'gray'
+            else:
+                cmap = None
+            axes[row, 0].imshow(img_original_full, cmap=cmap)
+            axes[row, 1].imshow(img_original, cmap=cmap)
+            axes[row, 2].imshow(img_refined, cmap=cmap)
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
