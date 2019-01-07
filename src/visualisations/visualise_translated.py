@@ -69,18 +69,13 @@ class M2UVisualisation:
         # plt.show()
         plt.savefig('../visualisations/mpii_vs_refined-mpii.png')
 
-        g_mpii = [mpii_data[(person_identifier, img_index)]['gaze'] for
-                  person_identifier, img_index in identifiers]
-        g_m2u = [m2u_data[(person_identifier, img_index)]['gaze'] for
-                 person_identifier, img_index in identifiers]
-
 
 class U2MVisualisation:
     def __init__(self):
         self.path_original = '../data/UnityEyes'
         self.path_refined = '../data/refined_Unity2MPII/'
         self.dl_original = UnityDataLoader(self.path_original)
-        self.dl_refined_mpii = RefinedUnityDataLoader(self.path_refined)
+        self.dl_refined = RefinedUnityDataLoader(self.path_refined)
         self.do_draw_gaze = True
 
     def sample_identifiers(self):
@@ -97,14 +92,14 @@ class U2MVisualisation:
         return index
 
     @staticmethod
-    def dg(img, gaze, length=100):
+    def dg(img, gaze, length=100, thickness=2):
         return draw_gaze(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
-            gaze, length=length, thickness=2, color=(0, 255, 0),
+            gaze, length=length, thickness=thickness, color=(0, 255, 0),
         )
 
     def get_data(self, identifiers=None):
-        return self.dl_original.get_data(identifiers), self.dl_refined_mpii.get_data(identifiers)
+        return self.dl_original.get_data(identifiers), self.dl_refined.get_data(identifiers)
 
     def visualise(self, identifiers=None):
         if identifiers is None:
@@ -123,18 +118,18 @@ class U2MVisualisation:
         for ax, row in zip(axes[:, 2], identifiers):
             ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
 
-        mpii_data, m2u_data = self.get_data(identifiers)
+        original_data, refined_data = self.get_data(identifiers)
         for i, file_stem in enumerate(identifiers):
             row = i
             axes[row, 0].axis("off")
             axes[row, 1].axis("off")
-            img_original_full = mpii_data[file_stem]['eye']
-            img_original = m2u_data[file_stem]['eye_original']
-            img_refined = m2u_data[file_stem]['eye']
+            img_original_full = original_data[file_stem]['eye']
+            img_original = refined_data[file_stem]['eye_original']
+            img_refined = refined_data[file_stem]['eye']
             if self.do_draw_gaze:
-                img_original_full = self.dg(img_original_full, mpii_data[file_stem]['gaze'], length=200)
-                img_original = self.dg(img_original, mpii_data[file_stem]['gaze'])
-                img_refined = self.dg(img_refined, m2u_data[file_stem]['gaze'], length=50)
+                img_original_full = self.dg(img_original_full, original_data[file_stem]['gaze'], length=400, thickness=5)
+                img_original = self.dg(img_original, original_data[file_stem]['gaze'])
+                img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], length=100)
 
             axes[row, 0].imshow(img_original_full)
             axes[row, 1].imshow(img_original)

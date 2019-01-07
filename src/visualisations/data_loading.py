@@ -80,7 +80,8 @@ class UnityDataLoader(DataLoader):
             out[identifiers[i]] = {
                 'eye': img,
                 # TODO: see difference to original gaze
-                'gaze': UnityPreprocessor.look_vec_to_gaze_vec(json_data)[0]
+                'gaze': UnityPreprocessor.look_vec_to_gaze_vec(json_data)[0],
+                'original_gaze': UnityPreprocessor.look_vec_to_gaze_vec(json_data)[1]
             }
         return out
 
