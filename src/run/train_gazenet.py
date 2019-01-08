@@ -55,11 +55,11 @@ def train():
     except os.error:
         pass
 
-    if rgb:
-        image_dimensions = [batch_size, *image_size, 3]
-    else:
-        image_dimensions = [batch_size, *image_size, 1]
-    model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), image_dimensions)
+    # if rgb:
+    #     image_dimensions = [batch_size, *image_size, 3]
+    # else:
+    #     image_dimensions = [batch_size, *image_size, 1]
+    # model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), image_dimensions)
 
     logging.info("Checkpoint directory: {}".format(checkpoints_dir))
 
@@ -149,7 +149,7 @@ def train():
 
                     # if step > 0 and step % 5000 == 0:
                 if 0 <= step < n_steps and step % 5000 == 0:
-                    model_manager.save_model(sess, gazenet)
+                    # model_manager.save_model(sess, gazenet)
                     save_path = saver.save(sess,
                                            checkpoints_dir + "/model.ckpt",
                                            global_step=step)
@@ -165,7 +165,7 @@ def train():
         except Exception as e:
             coord.request_stop(e)
         finally:
-            model_manager.save_model(sess, gazenet)
+            # model_manager.save_model(sess, gazenet)
             save_path = saver.save(sess, checkpoints_dir + "/model.ckpt",
                                    global_step=step)
             logging.info("Model saved in file: %s" % save_path)
