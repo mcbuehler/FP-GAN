@@ -133,7 +133,7 @@ class MPIIDataset(BaseDataset):
 if __name__ == "__main__":
     path_input = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
 
-    dataset = MPIIDataset(path_input, batch_size=10, image_size=(72, 120), rgb=False)
+    dataset = MPIIDataset(path_input=path_input, batch_size=10, image_size=(72, 120), rgb=False, normalise_gaze=True)
     iterator = dataset.get_iterator()
     next_element = iterator.get_next()
 
@@ -141,9 +141,12 @@ if __name__ == "__main__":
         # n_batches = int(dataset.N / dataset.batch_size)
         for i in range(10):
             elem = sess.run(next_element)
-            print(np.max(elem["gaze"], axis=1))
-            print(np.mean(np.max(np.abs(elem["gaze"]), axis=1)))
-            print(np.mean(np.mean(np.abs(elem["gaze"]), axis=1)))
+            # print(elem['gaze'])
+            # print(elem['gaze']/np.pi)
+            # print(np.max(elem["gaze"], axis=1))
+            # print(np.mean(np.max(np.abs(elem["gaze"]), axis=1)))
+            # print(np.mean(np.mean(np.abs(elem["gaze"]), axis=1)))
+
             from matplotlib.pyplot import imshow
             from util.gaze import draw_gaze
 

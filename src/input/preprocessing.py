@@ -270,13 +270,17 @@ class RefinedPreprocessor(Preprocessor):
         """Use annotations to segment eyes and calculate gaze direction."""
         result_dict = dict()
 
-        ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
-        iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
-        oh, ow = self._eye_image_shape
+        if self._eye_image_shape is not None:
+            oh, ow = self._eye_image_shape
+            full_image = cv.resize(full_image, (ow, oh))
 
-        def process_coords(coords_list):
-            coords = [eval(l) for l in coords_list]
-            return np.array([(x, ih - y, z) for (x, y, z) in coords])
+        # ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
+        # iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
+        # oh, ow = self._eye_image_shape
+
+        # def process_coords(coords_list):
+        #     coords = [eval(l) for l in coords_list]
+        #     return np.array([(x, ih - y, z) for (x, y, z) in coords])
 
         result_dict['head'] = json_data['head']
 

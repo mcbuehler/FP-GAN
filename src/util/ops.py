@@ -239,16 +239,12 @@ def maxpool(input, k, name, stride=2, reuse=False):
 
 
 def dense(input, d, name, mode, reuse=False):
+    print("dense input", input.get_shape())
     with tf.variable_scope(name, reuse=reuse):
         w = _weights("weights", shape=[input.shape[1], d])
         b = _biases("offset", shape=[1])
         z = tf.add(tf.matmul(input, w), b)
         a = tf.nn.relu(z)
-
-        # if mode == Mode:
-        #     tf.summary.histogram("weights", w)
-        #     tf.summary.histogram("z", z)
-
     return a
 
 
