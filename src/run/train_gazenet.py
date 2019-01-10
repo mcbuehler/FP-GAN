@@ -78,7 +78,8 @@ def train():
                 learning_rate=learning_rate,
                 beta1=beta1,
                 beta2=beta2,
-                name=model_name
+                name=model_name,
+                normalise_gaze=normalise_gaze
             )
 
             # Prepare training

@@ -1,3 +1,4 @@
+import numpy as np
 import tensorflow as tf
 from tensorflow import GraphKeys
 
@@ -37,7 +38,8 @@ class BaseGazeNet:
                  learning_rate=2e-4,
                  beta1=0.9,
                  beta2=0.999,
-                 Optimiser=tf.train.AdamOptimizer
+                 Optimiser=tf.train.AdamOptimizer,
+                 normalise_gaze=False
                  ):
         """
         Args:
@@ -65,6 +67,8 @@ class BaseGazeNet:
         self.beta2 = beta2
         self.Optimiser = Optimiser
 
+        self.normalise_gaze = normalise_gaze
+
     def forward(self, input, mode, is_training=True):
         """
         Args:
@@ -87,7 +91,6 @@ class BaseGazeNet:
         input_eye = input_batch['eye']
         input_gaze = input_batch['gaze']
         output = self.forward(input_eye, mode=mode, is_training=is_training)
-        error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze, output)
 
         loss_gaze = tf.reduce_mean(tf.squared_difference(output, input_gaze))
 
@@ -103,6 +106,13 @@ class BaseGazeNet:
         else:
             # we do not regularise
             loss = loss_gaze
+
+        if self.normalise_gaze:
+            # We have gaze in the range from [-1, 1]
+            # Convert gaze back to range [-pi, pi]
+            input_gaze_unnormalised = input_gaze * np.pi
+            output_unnormalised = output * np.pi
+            error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze_unnormalised, output_unnormalised)
 
         # Create summaries
         tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=[summary_key])

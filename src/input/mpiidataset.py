@@ -133,33 +133,59 @@ class MPIIDataset(BaseDataset):
 if __name__ == "__main__":
     path_input = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
 
-    dataset = MPIIDataset(path_input=path_input, batch_size=10, image_size=(72, 120), rgb=False, normalise_gaze=True)
+    dataset = MPIIDataset(path_input=path_input, batch_size=1000, shuffle=True, image_size=(72, 120), rgb=False, normalise_gaze=False)
+    from input.unitydataset import UnityDataset
+    dataset = UnityDataset(path_input='../data/UnityEyes', batch_size=1000, shuffle=True, image_size=(72, 120), rgb=False, normalise_gaze=True,
+                           do_augmentation=False)
     iterator = dataset.get_iterator()
     next_element = iterator.get_next()
+    import numpy.random as random
+    from util.gaze import angular_error
 
     with tf.Session() as sess:
         # n_batches = int(dataset.N / dataset.batch_size)
+        errors = list()
         for i in range(10):
-            elem = sess.run(next_element)
+            elem = sess.run(next_element['gaze'])
+            def minmax(elem, ax):
+                mi = np.min([e[ax] for e in elem])
+                ma = np.max([e[ax] for e in elem])
+                print(mi, ma)
+
+            minmax(elem, 0)
+            minmax(elem, 1)
+
+
+
+            random_perm = elem.copy()
+            random.shuffle(random_perm)
+
+            input_gaze_unnormalised = elem * np.pi
+            output_unnormalised = random_perm * np.pi
+            new_errors = angular_error(input_gaze_unnormalised, output_unnormalised)
+
+            errors.append(new_errors)
+        print("Random mean: ", np.nanmean(errors))
+
             # print(elem['gaze'])
             # print(elem['gaze']/np.pi)
             # print(np.max(elem["gaze"], axis=1))
             # print(np.mean(np.max(np.abs(elem["gaze"]), axis=1)))
             # print(np.mean(np.mean(np.abs(elem["gaze"]), axis=1)))
 
-            from matplotlib.pyplot import imshow
-            from util.gaze import draw_gaze
-
-            import matplotlib.pyplot as plt
-            for j in range(10):
-                img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
-                gaze = elem['gaze'][j]
-
-                img = draw_gaze(
-                    img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
-                    gaze, length=100.0, thickness=2, color=(0, 255, 0),
-                )
-                imshow(img)
-                plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
-                plt.show()
+            # from matplotlib.pyplot import imshow
+            # from util.gaze import draw_gaze
+            #
+            # import matplotlib.pyplot as plt
+            # for j in range(10):
+            #     img = np.array((elem['eye'][j]+1) * 128,  dtype=np.int)
+            #     gaze = elem['gaze'][j]
+            #
+            #     img = draw_gaze(
+            #         img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
+            #         gaze, length=100.0, thickness=2, color=(0, 255, 0),
+            #     )
+            #     imshow(img)
+            #     plt.title("Gaze: {:.3f} {:.3f}".format(*elem['gaze'][j]))
+            #     plt.show()
 

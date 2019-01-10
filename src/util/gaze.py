@@ -39,6 +39,7 @@ def vector_to_pitchyaw(vectors):
     out[:, 1] = np.arctan2(vectors[:, 0], vectors[:, 2])  # phi
     return out
 
+
 radians_to_degrees = 180.0 / np.pi
 
 
@@ -56,8 +57,8 @@ def angular_error(a, b):
     b_norm = np.clip(b_norm, a_min=1e-7, a_max=None)
 
     similarity = np.divide(ab, np.multiply(a_norm, b_norm))
-
-    return np.arccos(similarity) * radians_to_degrees
+    result = np.arccos(similarity) * radians_to_degrees
+    return result
 
 
 def mean_angular_error(a, b):
