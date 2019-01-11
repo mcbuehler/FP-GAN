@@ -32,7 +32,6 @@ class MPIIDataLoader(DataLoader):
         :return:
         """
         out = dict()
-
         with h5py.File(self.path, 'r') as hf:
             for i, (person_identifier, index) in enumerate(identifiers):
                 out[identifiers[i]] = {
@@ -65,6 +64,10 @@ class RefinedMPIIDataLoader(DataLoader):
 
 
 class UnityDataLoader(DataLoader):
+    def sample_identifiers(self, size=100):
+        from util.files import listdir
+        identifiers = listdir(self.path, postfix=".jpg", return_postfix=False)
+        return np.random.choice(identifiers, size)
 
     def get_data(self, identifiers):
         from input.preprocessing import UnityPreprocessor

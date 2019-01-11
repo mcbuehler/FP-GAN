@@ -52,7 +52,9 @@ class M2UVisualisation(Visualisation):
         # Axis labels
         cols = ["MPII (R)", "Refined MPII (S')"]
         for ax, col in zip(axes[0], cols):
+            # Column title
             ax.set_title(col)
+        # Labels for each image
         for ax, row in zip(axes[:, 0], identifiers):
             ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
         for ax, row in zip(axes[:, 1], identifiers):

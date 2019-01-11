@@ -24,13 +24,13 @@ class MPIIGenerator:
             for person_identifier, index in self.all_identifiers:
                 clean_eye = hf[person_identifier]['image'][index]
                 eye = hf[person_identifier]['image'][index]
+                gaze = hf[person_identifier]['gaze'][index]
+
                 if not self.rgb:
                     # convert rgb to b/w
                     clean_eye = np.mean(hf[person_identifier]['image'][index], axis=2)
                     eye = np.mean(hf[person_identifier]['image'][index], axis=2)
-                    gaze = hf[person_identifier]['gaze'][index]
-                    # We assume that gaze is normalised, but we want it in range [-pi, pi]
-                    gaze = np.pi * gaze
+
                 yield {
                     'eye': eye,
                     # For MPII we only have clean eyes for the moment
