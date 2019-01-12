@@ -1,6 +1,7 @@
 import logging
 import os
 
+import re
 import tensorflow as tf
 from datetime import datetime
 
@@ -13,55 +14,63 @@ FLAGS = tf.flags.FLAGS
 tf.flags.DEFINE_string('config', None, 'input configuration')
 tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration section')
 
-# Load the config variables
-cfg = Config(FLAGS.config, FLAGS.section)
 
-# Variables used for both directions
-gan_name = cfg.get('gan_name')
-batch_size = cfg.get('batch_size')
-image_size = [cfg.get('image_height'),
-              cfg.get('image_width')]
-use_lsgan = cfg.get('use_lsgan')
-norm_gan = cfg.get('norm')
-rgb = cfg.get('rgb')
-lambda1 = cfg.get('lambda1')
-lambda2 = cfg.get('lambda2')
-lambda_identity = cfg.get('lambda_identity')
-lambda_gaze = cfg.get('lambda_gaze')
-lambda_landmarks = cfg.get('lambda_landmarks')
-learning_rate = cfg.get('learning_rate')
+def restore_model(path, sess, variables_scope=None):
+    variables_can_be_restored = set(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=variables_scope))
+    logging.info("Loading model from '{}'".format(path))
 
-beta1 = cfg.get('beta1')
-pool_size = cfg.get('pool_size')
-ngf = cfg.get('ngf')
-S = cfg.get('S')
-R = cfg.get('R')
-checkpoints_dir = cfg.get('checkpoint_folder')
-n_steps = cfg.get('n_steps')
-filter_gaze = cfg.get('filter_gaze')
-normalise_gaze = cfg.get('normalise_gaze')
-# path_saved_model_gaze = cfg.get('path_saved_model_gaze')
-
-load_model = checkpoints_dir is not None and checkpoints_dir != ""
-lambdas_features = {
-    'identity': lambda_identity,
-    'gaze': lambda_gaze,
-    'landmarks': lambda_landmarks
-}
-
-ege_model_path = cfg.get('ege_path')
-ege_model_name = cfg.get('ege_model_name')
-ege_norm = cfg.get('ege_norm')
-
-
-def load_feature_model(path, sess):
-    variables_can_be_restored = set(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="gazenet_u_augmented_bw"))
-    logging.info("Loading feature model from '{}'".format(path))
+    checkpoint = tf.train.get_checkpoint_state(path)
+    restore_path = checkpoint.model_checkpoint_path
     restore = tf.train.Saver(variables_can_be_restored)
-    restore.restore(sess, path+"model.ckpt-100000")
+    restore.restore(sess, restore_path)
+    step = int(re.sub(r'[^\d]', '', restore_path.split('-')[-1]))
+    return step
 
 
 def train():
+    # Load the config variables
+    cfg = Config(FLAGS.config, FLAGS.section)
+
+    # Variables used for both directions
+    gan_name = cfg.get('gan_name')
+    batch_size = cfg.get('batch_size')
+    image_size = [cfg.get('image_height'),
+                  cfg.get('image_width')]
+    use_lsgan = cfg.get('use_lsgan')
+    norm_gan = cfg.get('norm')
+    rgb = cfg.get('rgb')
+    lambda1 = cfg.get('lambda1')
+    lambda2 = cfg.get('lambda2')
+    lambda_identity = cfg.get('lambda_identity')
+    lambda_gaze = cfg.get('lambda_gaze')
+    lambda_landmarks = cfg.get('lambda_landmarks')
+    learning_rate = cfg.get('learning_rate')
+
+    beta1 = cfg.get('beta1')
+    pool_size = cfg.get('pool_size')
+    ngf = cfg.get('ngf')
+    S = cfg.get('S')
+    R = cfg.get('R')
+    checkpoints_dir = cfg.get('checkpoint_folder')
+    n_steps = cfg.get('n_steps')
+    filter_gaze = cfg.get('filter_gaze')
+    # path_saved_model_gaze = cfg.get('path_saved_model_gaze')
+
+    checkpoints_dir = "../checkpoints/20190112-1836_ege"
+    load_model = checkpoints_dir is not None and checkpoints_dir != ""
+
+    lambdas_features = {
+        'identity': lambda_identity,
+        'gaze': lambda_gaze,
+        'landmarks': lambda_landmarks
+    }
+
+    ege_config = {
+        'norm': cfg.get('ege_norm'),
+        'normalise_gaze': cfg.get('normalise_gaze'),
+        'name': cfg.get('ege_name')
+    }
+
     if not load_model:
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
         checkpoints_dir = "../checkpoints/{}_{}".format(current_time, gan_name)
@@ -90,8 +99,8 @@ def train():
                 beta1=beta1,
                 ngf=ngf,
                 tf_session=sess,
-                filter_gaze=filter_gaze
-                # path_saved_model_gaze=path_saved_model_gaze
+                filter_gaze=filter_gaze,
+                ege_config=ege_config
             )
 
         G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s = cycle_gan.model()
@@ -99,19 +108,24 @@ def train():
                                         n_steps=n_steps)
 
         if load_model:
-            checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
-            meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
-            restore = tf.train.import_meta_graph(meta_graph_path)
-            restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
-            step = int(meta_graph_path.split("-")[2].split(".")[0])
+            step = restore_model(checkpoints_dir, sess)
         else:
             sess.run(tf.global_variables_initializer())
             step = 0
 
         saver = tf.train.Saver()
 
-        # load eye gaze feature model
-        load_feature_model(ege_model_path, sess=sess)
+        if lambdas_features['gaze'] > 0:
+            # load eye gaze feature model
+            ege_model_path = cfg.get('ege_path')
+            ege_model_name = cfg.get('ege_name')
+            restore_model(ege_model_path, sess=sess, variables_scope=ege_model_name)
+        if lambdas_features['landmarks'] > 0:
+            lm_model_path = cfg.get('lm_path')
+            lm_model_name = cfg.get('lm_name')
+            # load eye gaze feature model
+            restore_model(lm_model_path, sess=sess,
+                          variables_scope=lm_model_name)
 
         summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(checkpoints_dir, graph)

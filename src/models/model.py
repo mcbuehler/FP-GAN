@@ -30,7 +30,8 @@ class CycleGAN:
                  beta1=0.5,
                  ngf=64,
                  tf_session=None,
-                 filter_gaze=False
+                 filter_gaze=False,
+                 ege_config=None
                  ):
         """
         Args:
@@ -117,9 +118,7 @@ class CycleGAN:
                 learning_rate=None,
                 beta1=None,
                 beta2=None,
-                name="gazenet_u_augmented_bw",
-                normalise_gaze=False, #normalise_gaze,
-                norm="batch",
+                **ege_config
             )
 
     def model(self, fake_input=False):
