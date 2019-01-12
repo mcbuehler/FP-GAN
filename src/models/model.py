@@ -8,6 +8,8 @@ from models.discriminator import Discriminator
 from input.dataset_manager import DatasetManager
 from util.enum_classes import DatasetClass as DS
 from util.model_manager import ModelManager
+from util.enum_classes import Mode
+
 
 REAL_LABEL = 0.9
 
@@ -28,8 +30,6 @@ class CycleGAN:
                  beta1=0.5,
                  ngf=64,
                  tf_session=None,
-                 graph=None,
-                 path_saved_model_gaze='',
                  filter_gaze=False
                  ):
         """
@@ -69,7 +69,7 @@ class CycleGAN:
             input_shape = [batch_size, *image_size, 1]
 
         self.is_training = tf.placeholder_with_default(True, shape=[],
-                                                       name='is_training')
+                                                       name='gan_is_training')
 
         self.G = Generator('G', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size, rgb=rgb)
@@ -110,9 +110,17 @@ class CycleGAN:
                 filter_gaze=filter_gaze
             )
         if self.lambdas_features['gaze'] > 0:
-            assert path_saved_model_gaze != ''
-            model_manager = ModelManager(path_saved_model_gaze, input_shape)
-            self.gaze_in_tensor, self.gaze_out_tensor = model_manager.load_model(tf_session, graph)
+            from models.gazenet import GazeNet
+            self.gazenet = GazeNet(
+                batch_size=batch_size,
+                image_size=image_size,
+                learning_rate=None,
+                beta1=None,
+                beta2=None,
+                name="gazenet_u_augmented_bw",
+                normalise_gaze=False, #normalise_gaze,
+                norm="batch",
+            )
 
     def model(self, fake_input=False):
         if fake_input:
@@ -135,8 +143,8 @@ class CycleGAN:
         fake_r = self.G(s)
         G_gan_loss = self.generator_loss(self.D_R, fake_r,
                                          use_lsgan=self.use_lsgan)
-        G_transform_loss = self.get_feature_loss(s, fake_r)
-        G_loss = G_gan_loss + cycle_loss + G_transform_loss
+        G_feature_loss = self.get_feature_loss(s, fake_r)
+        G_loss = G_gan_loss + cycle_loss + G_feature_loss
         D_R_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
                                            use_lsgan=self.use_lsgan)
 
@@ -144,8 +152,8 @@ class CycleGAN:
         fake_s = self.F(r)
         F_gan_loss = self.generator_loss(self.D_S, fake_s,
                                          use_lsgan=self.use_lsgan)
-        F_transform_loss = self.get_feature_loss(r, fake_s)
-        F_loss = F_gan_loss + cycle_loss + F_transform_loss
+        F_feature_loss = self.get_feature_loss(r, fake_s)
+        F_loss = F_gan_loss + cycle_loss + F_feature_loss
         D_S_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
                                            use_lsgan=self.use_lsgan)
 
@@ -156,10 +164,10 @@ class CycleGAN:
         tf.summary.histogram('D_S/fake', self.D_S(self.F(r)))
 
         tf.summary.scalar('loss/G', G_gan_loss)
-        tf.summary.scalar('loss/G_transform', G_transform_loss)
+        tf.summary.scalar('loss/G_feature', G_feature_loss)
         tf.summary.scalar('loss/D_R', D_R_loss)
         tf.summary.scalar('loss/F', F_gan_loss)
-        tf.summary.scalar('loss/F_transform', F_transform_loss)
+        tf.summary.scalar('loss/F_feature', F_feature_loss)
         tf.summary.scalar('loss/D_S', D_S_loss)
         tf.summary.scalar('loss/cycle', cycle_loss)
 
@@ -297,18 +305,7 @@ class CycleGAN:
         :return:
         """
         assert 'gaze' in self.lambdas_features.keys()
-        assert self.gaze_in_tensor is not None
-        assert self.gaze_out_tensor is not None
-
-        x_evaluated, fake_y_evaluated = self.tf_session.run([x, fake_y])
-
-        x_pred = self.tf_session.run(
-            self.gaze_out_tensor,
-            {self.gaze_in_tensor: x_evaluated}
-        )
-        fake_y_pred = self.tf_session.run(
-            self.gaze_out_tensor,
-            {self.gaze_in_tensor: fake_y_evaluated}
-        )
-        loss = tf.reduce_mean(tf.squared_difference(x_pred, fake_y_pred))
+        x_gaze = self.gazenet.forward(x, mode=Mode.TEST, is_training=False)
+        fake_y_gaze = self.gazenet.forward(fake_y, mode=Mode.TEST, is_training=False)
+        loss = tf.reduce_mean(tf.squared_difference(x_gaze, fake_y_gaze))
         return self.lambdas_features['gaze'] * loss

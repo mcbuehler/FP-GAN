@@ -112,7 +112,10 @@ class BaseGazeNet:
             # Convert gaze back to range [-pi, pi]
             input_gaze_unnormalised = input_gaze * np.pi
             output_unnormalised = output * np.pi
-            error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze_unnormalised, output_unnormalised)
+        else:
+            input_gaze_unnormalised = input_gaze
+            output_unnormalised = output
+        error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze_unnormalised, output_unnormalised)
 
         # Create summaries
         tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=[summary_key])

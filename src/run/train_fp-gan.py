@@ -17,11 +17,12 @@ tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration section')
 cfg = Config(FLAGS.config, FLAGS.section)
 
 # Variables used for both directions
+gan_name = cfg.get('gan_name')
 batch_size = cfg.get('batch_size')
 image_size = [cfg.get('image_height'),
               cfg.get('image_width')]
 use_lsgan = cfg.get('use_lsgan')
-norm = cfg.get('norm')
+norm_gan = cfg.get('norm')
 rgb = cfg.get('rgb')
 lambda1 = cfg.get('lambda1')
 lambda2 = cfg.get('lambda2')
@@ -38,6 +39,7 @@ R = cfg.get('R')
 checkpoints_dir = cfg.get('checkpoint_folder')
 n_steps = cfg.get('n_steps')
 filter_gaze = cfg.get('filter_gaze')
+normalise_gaze = cfg.get('normalise_gaze')
 # path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
 load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -47,11 +49,22 @@ lambdas_features = {
     'landmarks': lambda_landmarks
 }
 
+ege_model_path = cfg.get('ege_path')
+ege_model_name = cfg.get('ege_model_name')
+ege_norm = cfg.get('ege_norm')
+
+
+def load_feature_model(path, sess):
+    variables_can_be_restored = set(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope="gazenet_u_augmented_bw"))
+    logging.info("Loading feature model from '{}'".format(path))
+    restore = tf.train.Saver(variables_can_be_restored)
+    restore.restore(sess, path+"model.ckpt-100000")
+
 
 def train():
     if not load_model:
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
-        checkpoints_dir = "../checkpoints/{}".format(current_time)
+        checkpoints_dir = "../checkpoints/{}_{}".format(current_time, gan_name)
     try:
         os.makedirs(checkpoints_dir)
     except os.error:
@@ -60,6 +73,7 @@ def train():
     graph = tf.Graph()
 
     with tf.Session(graph=graph) as sess:
+
         with graph.as_default():
             cycle_gan = CycleGAN(
                 S_train_file=S,
@@ -67,7 +81,7 @@ def train():
                 batch_size=batch_size,
                 image_size=image_size,
                 use_lsgan=use_lsgan,
-                norm=norm,
+                norm=norm_gan,
                 rgb=rgb,
                 lambda1=lambda1,
                 lambda2=lambda2,
@@ -76,7 +90,6 @@ def train():
                 beta1=beta1,
                 ngf=ngf,
                 tf_session=sess,
-                graph=graph,
                 filter_gaze=filter_gaze
                 # path_saved_model_gaze=path_saved_model_gaze
             )
@@ -95,9 +108,13 @@ def train():
             sess.run(tf.global_variables_initializer())
             step = 0
 
+        saver = tf.train.Saver()
+
+        # load eye gaze feature model
+        load_feature_model(ege_model_path, sess=sess)
+
         summary_op = tf.summary.merge_all()
         train_writer = tf.summary.FileWriter(checkpoints_dir, graph)
-        saver = tf.train.Saver()
 
         coord = tf.train.Coordinator()
         # Collect errors
