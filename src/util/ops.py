@@ -239,7 +239,6 @@ def maxpool(input, k, name, stride=2, reuse=False):
 
 
 def dense(input, d, name, mode, reuse=False):
-    print("dense input", input.get_shape())
     with tf.variable_scope(name, reuse=reuse):
         w = _weights("weights", shape=[input.shape[1], d])
         b = _biases("offset", shape=[1])

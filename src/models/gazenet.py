@@ -37,7 +37,6 @@ class GazeNet(BaseGazeNet):
 
         with tf.variable_scope(self.name, reuse=self.reuse):
             # convolution layers
-            print("input", input.get_shape())
             c32_1 = ops.conv3x3(input, k=32, stride=2, reuse=self.reuse,
                                 norm=None,
                                 is_training=self.is_training_tensor,
@@ -62,9 +61,7 @@ class GazeNet(BaseGazeNet):
                                mode=mode)
             maxpool2x2 = ops.maxpool(c192, 2, name="maxpool2x2", stride=2,
                                      reuse=self.reuse)
-            print("Before flatten: ", maxpool2x2.get_shape())
             flattened = tf.contrib.layers.flatten(maxpool2x2)
-            print("after flatten: ", flattened.get_shape())
             fc9600 = ops.dense(flattened, d=9600, name="fc9600",
                                reuse=self.reuse, mode=mode)
             fc1000 = ops.dense(fc9600, d=1000, name="fc1000", reuse=self.reuse,
