@@ -56,7 +56,6 @@ def train():
     filter_gaze = cfg.get('filter_gaze')
     # path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
-    checkpoints_dir = "../checkpoints/20190112-1836_ege"
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
 
     lambdas_features = {
@@ -70,6 +69,8 @@ def train():
         'normalise_gaze': cfg.get('normalise_gaze'),
         'name': cfg.get('ege_name')
     }
+
+    n_info_steps = 100
 
     if not load_model:
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
@@ -141,22 +142,23 @@ def train():
             try:
                 fake_r_val, fake_s_val = sess.run([fake_r, fake_s])
 
+                # Do step with summaries
                 _, G_loss_val, D_R_loss_val, F_loss_val, D_S_loss_val, summary = (
                     sess.run(
                         [optimizers, G_loss, D_R_loss, F_loss, D_S_loss,
                          summary_op],
                         feed_dict={
-                            cycle_gan.fake_r: fake_R_pool.query(fake_r_val),
-                            cycle_gan.fake_s: fake_S_pool.query(fake_s_val)}
+                            cycle_gan.fake_r: fake_R_pool.query(
+                                fake_r_val),
+                            cycle_gan.fake_s: fake_S_pool.query(
+                                fake_s_val)}
                     )
                 )
 
                 train_writer.add_summary(summary, step)
                 train_writer.flush()
 
-                n_info_steps = 100
                 if step % n_info_steps == 0:
-                    # coord.
                     logging.info('-----------Step %d:-------------' % step)
                     logging.info('  Time: {}'.format(
                         datetime.now().strftime('%b-%d-%I%M%p-%G')))
