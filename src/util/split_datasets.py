@@ -1,9 +1,10 @@
 import os
 import re
-from shutil import copyfile
 from os import symlink
 import numpy as np
-import logging
+
+
+BASE_DATA_DIR = os.getenv('FPGAN_BASE_DATA_DIR', '/disks/data4/marcel/FP-GAN/data')
 
 
 class DatasetSplitFactory:
@@ -30,13 +31,24 @@ class DatasetSplitFactory:
             os.mkdir(path)
 
     def copy_samples(self, ids, path_from, path_to):
+        # from shutil import rmtree
+        # rmtree(path_to)
+
         self.create_folder_if_not_exists(path_to)
         print("Copying {} images from {} to {}".format(len(ids), path_from, path_to))
         for id in ids:
-            file_jpg = self.create_filepath(path_from, id, 'jpg')
-            file_json = self.create_filepath(path_from, id, 'json')
-            copyfile(file_jpg, self.create_filepath(path_to, id, 'jpg'))
-            copyfile(file_json, self.create_filepath(path_to, id, 'json'))
+            file_jpg_in = self.create_filepath(path_from, id, 'jpg')
+            file_json_in = self.create_filepath(path_from, id, 'json')
+
+            file_jpg_out = self.create_filepath(path_to, id, 'jpg')
+            file_json_out = self.create_filepath(path_to, id, 'json')
+
+            if os.path.isfile(file_jpg_out) or os.path.isfile(file_json_out):
+                os.unlink(file_jpg_out)
+                os.unlink(file_json_out)
+
+            symlink(file_jpg_in, file_jpg_out)
+            symlink(file_json_in, file_json_out)
         print("Copied {} images".format(len(ids)))
 
     def create_and_save(self, all_ids, size, from_path, to_path):
@@ -159,7 +171,7 @@ class MPIIDatasetSplitFactory(DatasetSplitFactory):
 def run_refined_m2u():
     test_ids = ["p{}".format(i) for i in map(lambda s: str(s).zfill(2), range(12, 15))]
     factory = RefinedMPIIDatasetSplitFactory(
-        path_source="../data/refined_MPII2Unity/",
+        path_source=os.path.join(BASE_DATA_DIR, "refined_MPII2Unity/"),
         path_train="../data/refined_MPII2Unity_Train/",
         path_validation=None,
         path_test="../data/refined_MPII2Unity_Test/",
@@ -171,7 +183,7 @@ def run_refined_m2u():
 
 def run_refined_u2m():
     factory = StandardDatasetSplitFactory(
-        path_source="../data/refined_Unity2MPII/",
+        path_source=os.path.join(BASE_DATA_DIR, "refined_Unity2MPII/"),
         path_train="../data/refined_Unity2MPII_Train/",
         path_validation="../data/refined_Unity2MPII_Val/",
         path_test="../data/refined_Unity2MPII_Test/",
@@ -184,7 +196,7 @@ def run_refined_u2m():
 
 def run_unityeyes():
     factory = StandardDatasetSplitFactory(
-        path_source="../data/UnityEyes/",
+        path_source=os.path.join(BASE_DATA_DIR, "UnityEyes"),
         path_train="../data/UnityEyesTrain/",
         path_validation="../data/UnityEyesVal/",
         path_test="../data/UnityEyesTest/",
@@ -198,7 +210,7 @@ def run_unityeyes():
 def run_refined_m():
     test_ids = ["p{}".format(i) for i in map(lambda s: str(s).zfill(2), range(12, 15))]
     factory = MPIIDatasetSplitFactory(
-        path_source="../data/MPIIFaceGaze/single-eye-right_zhang.h5",
+        path_source=os.path.join(BASE_DATA_DIR, "MPIIFaceGaze/single-eye-right_zhang.h5"),
         path_train="../data/MPIIFaceGaze/train-right.h5",
         path_validation=None,
         path_test="../data/MPIIFaceGaze/test-right.h5",
@@ -210,7 +222,7 @@ def run_refined_m():
 
 if __name__ == "__main__":
     # run_unityeyes()
-    # run_refined_u2m()
+    run_refined_u2m()
     run_refined_m2u()
-    run_refined_m()
+    # run_refined_m()
 
