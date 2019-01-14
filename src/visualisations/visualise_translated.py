@@ -160,20 +160,22 @@ if __name__ == "__main__":
 
     if M2U:
         path_original = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
-        path_refined = '../data/refined_MPII2Unity/'
+        # path_refined = '../data/refined_MPII2Unity/'
+        path_refined = '../checkpoints/20190105-1325/refined_MPII2Unity/'
         dl_original = MPIIDataLoader(path_original)
         dl_refined = RefinedMPIIDataLoader(path_refined)
 
         m2u_visualisation = M2UVisualisation(
             dl_original=dl_original,
             dl_refined=dl_refined,
-            name_out='mpii_vs_refined_bw.png')
+            name_out='mpii_vs_refined_bw_ege5.png')
         identifiers = M2UVisualisation.sample_identifiers(path_original)
         m2u_visualisation.visualise(identifiers)
 
     if U2M:
         path_original = '../data/UnityEyes'
-        path_refined = '../data/refined_Unity2MPII/'
+        # path_refined = '../data/refined_Unity2MPII/'
+        path_refined = '../checkpoints/20190105-1325/refined_Unity2MPII/'
         dl_original = UnityDataLoader(path_original)
         dl_refined = RefinedUnityDataLoader(path_refined)
 
@@ -182,5 +184,5 @@ if __name__ == "__main__":
         u2m_visualisation = U2MVisualisation(
             dl_original=dl_original,
             dl_refined=dl_refined,
-            name_out='unity_vs_refined_bw.png')
+            name_out='unity_vs_refined_bw_ege5.png')
         u2m_visualisation.visualise(identifiers)
