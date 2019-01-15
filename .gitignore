@@ -110,3 +110,5 @@ test_*
 checkpoints_*
 *.jpg
 visualisations
+
+outputs_elg
