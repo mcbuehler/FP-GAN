@@ -1,5 +1,4 @@
 import tensorflow as tf
-from input.reader import UnityReader, MPIIGazeReader
 
 import util.ops as ops
 import util.utils as utils
@@ -7,7 +6,6 @@ from models.generator import Generator
 from models.discriminator import Discriminator
 from input.dataset_manager import DatasetManager
 from util.enum_classes import DatasetClass as DS
-from util.model_manager import ModelManager
 from util.enum_classes import Mode
 
 

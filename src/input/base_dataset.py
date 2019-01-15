@@ -31,7 +31,7 @@ class BaseDataset:
         self.drop_remainder = drop_remainder
         self.filter_gaze = filter_gaze
         self.normalise_gaze = normalise_gaze
-        self.do_augmentation=do_augmentation
+        self.do_augmentation = do_augmentation
 
         if self.filter_gaze:
             self.gaze_filter_range = {
