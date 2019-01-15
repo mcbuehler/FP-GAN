@@ -16,8 +16,8 @@ def _tf_mse(x, y):
 class ELG:
     """ELG architecture as introduced in [Park et al. ETRA'18]."""
 
-    def __init__(self, tensorflow_session=None, first_layer_stride=1,
-                 num_modules=2, num_feature_maps=32, **kwargs):
+    def __init__(self, tensorflow_session=None, first_layer_stride=2,
+                 num_modules=3, num_feature_maps=64, **kwargs):
         """Specify ELG-specific parameters."""
         self._hg_first_layer_stride = first_layer_stride
         self._hg_num_modules = num_modules
