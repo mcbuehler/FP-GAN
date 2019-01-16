@@ -118,6 +118,9 @@ class CycleGAN:
                 beta2=None,
                 **ege_config
             )
+        if self.lambdas_features['landmarks'] > 0:
+            from models.elg import ELG
+            self.elg = ELG(num_feature_maps=64)
 
     def model(self, fake_input=False):
         if fake_input:
@@ -140,7 +143,7 @@ class CycleGAN:
         fake_r = self.G(s)
         G_gan_loss = self.generator_loss(self.D_R, fake_r,
                                          use_lsgan=self.use_lsgan)
-        G_feature_loss = self.get_feature_loss(s, fake_r)
+        G_feature_loss = self.get_feature_loss(s, fake_r, 'G')
         G_loss = G_gan_loss + cycle_loss + G_feature_loss
         D_R_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
                                            use_lsgan=self.use_lsgan)
@@ -149,7 +152,7 @@ class CycleGAN:
         fake_s = self.F(r)
         F_gan_loss = self.generator_loss(self.D_S, fake_s,
                                          use_lsgan=self.use_lsgan)
-        F_feature_loss = self.get_feature_loss(r, fake_s)
+        F_feature_loss = self.get_feature_loss(r, fake_s, 'F')
         F_loss = F_gan_loss + cycle_loss + F_feature_loss
         D_S_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
                                            use_lsgan=self.use_lsgan)
@@ -266,7 +269,7 @@ class CycleGAN:
         loss = self.lambda1 * forward_loss + self.lambda2 * backward_loss
         return loss
 
-    def get_feature_loss(self, x, fake_y):
+    def get_feature_loss(self, x, fake_y, generator_name):
         """
         Placeholder only
         :param x: real input
@@ -275,12 +278,17 @@ class CycleGAN:
         """
         loss = 0
         if self.lambdas_features["identity"] > 0:
-            loss += self._identity_transform_loss(x, fake_y)
+            id_loss = self._identity_transform_loss(x, fake_y, generator_name)
+            loss += id_loss
         if self.lambdas_features["gaze"] > 0:
-            loss += self._gaze_transform_loss(x, fake_y)
+            gaze_loss = self._gaze_transform_loss(x, fake_y, generator_name)
+            loss += gaze_loss
+        if self.lambdas_features["landmarks"] > 0:
+            lm_loss = self._landmarks_transform_loss(x, fake_y, generator_name)
+            loss += lm_loss
         return loss
 
-    def _identity_transform_loss(self, x, fake_y):
+    def _identity_transform_loss(self, x, fake_y, generator_name):
         """
         L1 Identity transform loss. This ensures that fake_y is
         not too different from x
@@ -291,9 +299,10 @@ class CycleGAN:
         x_grayscale = tf.reduce_mean(x, 3)
         fake_y_grayscale = tf.reduce_mean(fake_y, 3)
         loss = tf.reduce_mean(tf.abs(fake_y_grayscale - x_grayscale))
+        tf.summary.scalar('loss/{}/identity'.format(generator_name), loss)
         return self.lambdas_features['identity'] * loss
 
-    def _gaze_transform_loss(self, x, fake_y):
+    def _gaze_transform_loss(self, x, fake_y, generator_name):
         """
         L2 transform loss on eye gaze. This ensures that fake_y is
         not too different from x
@@ -301,8 +310,17 @@ class CycleGAN:
         :param fake_y: G(x)
         :return:
         """
-        assert 'gaze' in self.lambdas_features.keys()
         x_gaze = self.gazenet.forward(x, mode=Mode.TEST, is_training=False)
         fake_y_gaze = self.gazenet.forward(fake_y, mode=Mode.TEST, is_training=False)
         loss = tf.reduce_mean(tf.squared_difference(x_gaze, fake_y_gaze))
+        tf.summary.scalar('loss/{}/gaze'.format(generator_name), loss)
         return self.lambdas_features['gaze'] * loss
+
+    def _landmarks_transform_loss(self, x, fake_y, generator_name):
+        # for image size 36,60 we yield 60
+        normalisation_constant = max(self.image_size)
+        x_output, _, _ = self.elg.build_model(x)
+        fake_y_output, _, _ = self.elg.build_model(fake_y)
+        loss = tf.reduce_mean(tf.squared_difference(x_output['landmarks']/normalisation_constant, fake_y_output['landmarks']/normalisation_constant))
+        tf.summary.scalar('loss/{}/landmarks'.format(generator_name), loss)
+        return self.lambdas_features['landmarks'] * loss
