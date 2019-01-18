@@ -93,17 +93,18 @@ def main():
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
 
-    if FLAGS.direction == Direction.U2M:
-        U2M = True
-    elif FLAGS.direction == Direction.M2U:
-        U2M = False
-    else:
+    if FLAGS.direction in [Direction.U2M, Direction.BOTH]:
+        run_export(cfg, U2M=True)
+        run_inference(cfg, U2M=True)
+    if FLAGS.direction in [Direction.M2U, Direction.BOTH]:
+        run_export(cfg, U2M=False)
+        run_inference(cfg, U2M=False)
+    if FLAGS.direction not in Direction.get_all():
         print("Invalid direction: {}".format(FLAGS.direction))
         print("Direction must be one of: {}".format(", ".join(Direction().get_all())))
         exit()
 
-    run_export(cfg, U2M)
-    run_inference(cfg, U2M)
+
 
 
 if __name__ == '__main__':
