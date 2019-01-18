@@ -318,9 +318,12 @@ class CycleGAN:
 
     def _landmarks_transform_loss(self, x, fake_y, generator_name):
         # for image size 36,60 we yield 60
-        normalisation_constant = max(self.image_size)
         x_output, _, _ = self.elg.build_model(x)
         fake_y_output, _, _ = self.elg.build_model(fake_y)
-        loss = tf.reduce_mean(tf.squared_difference(x_output['landmarks']/normalisation_constant, fake_y_output['landmarks']/normalisation_constant))
+        # We want both coordinates be in the range [0,1]
+        # So we divide by image size (36,60)
+        x_output_normalised = x_output['landmarks']/self.image_size
+        fake_y_output_normalised = fake_y_output['landmarks']/self.image_size
+        loss = tf.reduce_mean(tf.squared_difference(x_output_normalised, fake_y_output_normalised))
         tf.summary.scalar('loss/{}/landmarks'.format(generator_name), loss)
         return self.lambdas_features['landmarks'] * loss

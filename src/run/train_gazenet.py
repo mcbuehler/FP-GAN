@@ -87,6 +87,7 @@ def train():
                 regulariser = tf.contrib.layers.l2_regularizer(scale=cfg.get('regularisation_lambda'))
             else:
                 regulariser = None
+
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
                 shuffle=True, repeat=True, do_augmentation=do_augmentation,

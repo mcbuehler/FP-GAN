@@ -37,6 +37,7 @@ class BaseTest:
 
     def _log_result(self, loss_mean, loss_std, error_angular, step):
         logging.info('-----------Test Step %d:-------------' % step)
+        logging.info("Test path: {}".format(self.path))
         logging.info('  Time: {}'.format(
             datetime.now().strftime('%b-%d-%I%M%p-%G')))
         logging.info(
