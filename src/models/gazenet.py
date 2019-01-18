@@ -2,6 +2,10 @@ import tensorflow as tf
 
 import util.ops as ops
 from models.base_gazenet import BaseGazeNet
+from util.enum_classes import Mode
+from util.model_utils import restore_model
+
+
 
 """
 Original architecture:
@@ -75,3 +79,35 @@ class GazeNet(BaseGazeNet):
             tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
 
         return out
+
+
+class GazeNetInference:
+    def __init__(self, sess, checkpoint_path, batch_size, image_size, norm, normalise_gaze, name):
+        self.sess = sess
+        self.checkpoint_path = checkpoint_path
+        self.gazenet = GazeNet(
+            batch_size=batch_size,
+            image_size=image_size,
+            learning_rate=None,
+            beta1=None,
+            beta2=None,
+            norm=norm,
+            normalise_gaze=normalise_gaze,
+            name=name
+        )
+        self.in_tensor, self.out_tensor = self.build_model()
+
+    def build_model(self):
+        in_tensor = tf.placeholder(tf.float32,
+                                   (self.gazenet.batch_size,
+                                    *self.gazenet.image_size, 1)
+                                   )
+        out_tensor = self.gazenet.forward(in_tensor, mode=Mode.TEST,
+                                     is_training=False)
+        return in_tensor, out_tensor
+
+    def predict_gaze(self, images_preprocessed):
+        restore_model(self.checkpoint_path, self.sess, self.gazenet.name)
+        gaze_pred = self.sess.run(self.out_tensor,
+                             feed_dict={self.in_tensor: images_preprocessed})
+        return gaze_pred
