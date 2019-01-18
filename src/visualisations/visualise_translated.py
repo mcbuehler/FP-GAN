@@ -1,3 +1,5 @@
+from collections import OrderedDict
+
 import matplotlib.pyplot as plt
 from visualisations.data_loading import MPIIDataLoader, RefinedMPIIDataLoader, UnityDataLoader, RefinedUnityDataLoader
 import h5py
@@ -27,20 +29,24 @@ class Visualisation:
         self.name_out = name_out
         self.dl_original = dl_original
         self.dl_refined = dl_refined
-        self.path_ege = path_ege
-        self.do_draw_gaze = do_draw_gaze
-        self.gazenet_inference = GazeNetInference(
-            sess,
-            path_ege,
-            n_images,
-            image_size,
-            norm,
-            normalise_gaze,
-            gazenet_name
-        )
-        self.color_refined = (255, 255, 0)
+        self.color_predicted = (255, 255, 0)
         self.color_true = (255, 0, 0)
         self.n_images = n_images
+        self.do_draw_gaze = do_draw_gaze
+        self.predict_gaze = False
+
+        if path_ege and gazenet_name:
+            self.predict_gaze = True
+            self.path_ege = path_ege
+            self.gazenet_inference = GazeNetInference(
+                sess,
+                path_ege,
+                n_images,
+                image_size,
+                norm,
+                normalise_gaze,
+                gazenet_name
+            )
 
     def visualise(self, identifiers):
         raise NotImplementedError()
@@ -59,7 +65,7 @@ class Visualisation:
         return images_preprocessed
 
     @staticmethod
-    def dg(img, gaze, color, length=100, thickness=2):
+    def dg(img, gaze, color, length=100, thickness=1):
         return draw_gaze(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
             gaze, length=length, thickness=thickness, color=color,
@@ -105,7 +111,8 @@ class M2UVisualisation(Visualisation):
         # Get the predictions for translated images
         images_refined = [refined_data[key]['eye'] for key in identifiers]
         images_preprocessed = self.preprocess(images_refined)
-        gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
+        if self.predict_gaze:
+            gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
 
         for i, (person_identifier, img_index) in enumerate(identifiers):
             row = i
@@ -113,13 +120,16 @@ class M2UVisualisation(Visualisation):
             axes[row, 1].axis("off")
             img_original = original_data[(person_identifier, img_index)]['eye']
             img_refined = refined_data[(person_identifier, img_index)]['eye']
-            if self.do_draw_gaze:
-                img_original = self.dg(img_original, original_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
-                img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_true)
-                img_refined = self.dg(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_refined)  #
 
             if len(img_refined.shape) == 2:
                 img_refined = self.gray2rgb(img_refined)
+
+            if self.do_draw_gaze:
+                img_original = self.dg(img_original, original_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
+                img_refined = self.dg(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
+                if self.predict_gaze:
+                    img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+
             axes[row, 0].imshow(img_original)
             axes[row, 1].imshow(img_refined)
 
@@ -166,7 +176,8 @@ class U2MVisualisation(Visualisation):
         # Get the predictions for translated images
         images_refined = [refined_data[key]['eye'] for key in identifiers]
         images_preprocessed = self.preprocess(images_refined)
-        gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
+        if self.predict_gaze:
+            gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
 
         for i, file_stem in enumerate(identifiers):
             row = i
@@ -184,7 +195,8 @@ class U2MVisualisation(Visualisation):
                 img_original_full = self.dg(img_original_full, original_data[file_stem]['gaze'], length=400, thickness=5, color=self.color_true)
                 img_original = self.dg(img_original, original_data[file_stem]['gaze'], color=self.color_true)
                 img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], length=100, color=self.color_true)
-                img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_refined)
+                if self.predict_gaze:
+                    img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
 
             axes[row, 0].imshow(img_original_full)
             axes[row, 1].imshow(img_original)
@@ -198,20 +210,28 @@ class U2MVisualisation(Visualisation):
 
 if __name__ == "__main__":
     M2U = True
-    M2U = False
+    # M2U = False
     U2M = True
     # U2M = False
 
     # GAN identifier: {"U2M": (EGE Identifier, EGE name)}
-    model_identifiers = {
-        # "20181229-1345",
-        # "20190105-1325",
-        # "20190112-1740_ege_l5",
-        "20190113-1455_ege_l8":
-            {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
-        # "20190114-0959_ege_l15"
-    }
-    for model_identifier in model_identifiers:
+    models = OrderedDict()
+    # BASIC GAN
+    # models["20181229-1345"] = {"U2M": ("20181230-1219_gazenet_u2m_augmented", "gazenet_u2m_augmented")}
+    # SIMPLISTIC GAN
+    models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
+    # EGE GAN
+    models["20190112-1740_ege_l5"] = {"U2M": ()}
+    models["20190113-1455_ege_l8"] = {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
+    models["20190114-0959_ege_l15"] = {"U2M": ()}
+    models["20190116-1225_ege_l10_id5"] = {"U2M": ()}
+    # LM GANs
+    models["20190116-2156_lm_l5"] = {"U2M": ()}
+    models["20190117-1430_lm_l8"] = {"U2M": ()}
+    models["20190116-2305_lm_l15"] = {"U2M": ()}
+    models["20190117-1548_lm_l10_id5"] = {"U2M": ()}
+
+    for model_identifier in models.keys():
         print("Processing model identifier {}...".format(model_identifier))
         if M2U:
             path_original = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
@@ -239,7 +259,13 @@ if __name__ == "__main__":
         if U2M:
             path_original = '../data/UnityEyes'
             path_refined = '../checkpoints/{}/refined_Unity2MPII'.format(model_identifier)
-            path_ege = '../checkpoints_gazenet/20190114-2346_gazenet_u2m_bw_ege_l8'
+            if models[model_identifier]["U2M"]:
+                ege_folder = models[model_identifier]["U2M"][0]
+                gazenet_name = models[model_identifier]["U2M"][1]
+                path_ege = os.path.join('../checkpoints_gazenet/', ege_folder)
+            else:
+                path_ege = None
+                gazenet_name = None
             dl_original = UnityDataLoader(path_original)
             dl_refined = RefinedUnityDataLoader(path_refined)
 
@@ -250,10 +276,10 @@ if __name__ == "__main__":
                     path_ege=path_ege,
                     name_out='unity_vs_refined_{}.png'.format(model_identifier),
                     n_images=15,
-                    image_size=(36,60),
+                    image_size=(36, 60),
                     norm="batch",
                     normalise_gaze=False,
-                    gazenet_name="gazenet_u2m_bw_ege_l8",
+                    gazenet_name=gazenet_name,
                     sess=sess)
                 identifiers = u2m_visualisation.sample_identifiers(
                     path_original, path_refined)
