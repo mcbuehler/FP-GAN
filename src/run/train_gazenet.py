@@ -9,7 +9,6 @@ from datetime import datetime
 
 from models.gazenet import GazeNet
 from util.enum_classes import Mode
-from util.model_manager import ModelManager
 
 FLAGS = tf.flags.FLAGS
 
