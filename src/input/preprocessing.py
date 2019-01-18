@@ -266,7 +266,7 @@ class RefinedPreprocessor(Preprocessor):
                  eye_image_shape=(72, 120)):
         super().__init__(do_augmentation, eye_image_shape=eye_image_shape)
 
-    def preprocess(self, full_image, json_data):
+    def preprocess(self, full_image, json_data=None):
         """Use annotations to segment eyes and calculate gaze direction."""
         result_dict = dict()
 
@@ -282,7 +282,11 @@ class RefinedPreprocessor(Preprocessor):
         #     coords = [eval(l) for l in coords_list]
         #     return np.array([(x, ih - y, z) for (x, y, z) in coords])
 
-        result_dict['head'] = json_data['head']
+        if json_data:
+            result_dict['head'] = json_data['head']
+            # Convert look vector to gaze direction in polar angles
+            # gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
+            result_dict['gaze'] = np.array(json_data['gaze']).astype(np.float32)
 
         eye = full_image
 
@@ -294,10 +298,6 @@ class RefinedPreprocessor(Preprocessor):
         clean_eye -= 1.0
 
         result_dict['clean_eye'] = clean_eye
-
-        # Convert look vector to gaze direction in polar angles
-        # gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
-        result_dict['gaze'] = np.array(json_data['gaze']).astype(np.float32)
 
         # Start augmentation
         if self.do_augmentation:
@@ -311,4 +311,4 @@ class RefinedPreprocessor(Preprocessor):
 
         result_dict['eye'] = eye
         return_keys = ['clean_eye', 'eye', 'gaze']
-        return [result_dict[k] for k in return_keys]
+        return [result_dict[k] for k in return_keys if k in result_dict.keys()]
