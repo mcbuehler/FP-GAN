@@ -36,10 +36,11 @@ class EnvironmentVariable:
 class TranslationDirection:
     U2M = "U2M"
     M2U = "M2U"
+    BOTH = "both"
 
     @classmethod
     def get_all(cls):
-        return [cls.U2M, cls.M2U]
+        return [cls.U2M, cls.M2U, cls.BOTH]
 
 
 class DatasetClass:
