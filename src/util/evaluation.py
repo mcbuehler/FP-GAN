@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import datetime
 
@@ -6,6 +7,7 @@ import tensorflow as tf
 
 from input.dataset_manager import DatasetManager
 from util.enum_classes import Mode
+import os
 
 
 class BaseTest:
@@ -21,6 +23,7 @@ class BaseTest:
             dataset_class=dataset_class,
             rgb=rgb,
             normalise_gaze=normalise_gaze)
+        self.path = path
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
         self.model = model
@@ -51,7 +54,7 @@ class BaseTest:
 
 class Test(BaseTest):
 
-    def run(self, sess, step, n_batches=-1):
+    def run(self, sess, step, n_batches=-1, write_folder=None):
         logging.info("Preparing Testing...")
         # Don't perform on full dataset every time (too time-consuming)
         n_batches = n_batches if n_batches > 0 else self.n_batches_per_epoch
@@ -72,6 +75,15 @@ class Test(BaseTest):
         angular_error = np.mean(angular_values)
 
         self._log_result(loss_mean, loss_std, angular_error, step)
+
+        if write_folder is not None:
+            # json.dump does not write C data types. We need built-in data types.
+            to_write = {'loss': [float(l) for l in loss_values],
+                        'angular_error': [float(l) for l in angular_values],
+                        'test_path': self.path }
+            filepath = os.path.join(write_folder, "{}_test.json".format(datetime.now().strftime("%Y%m%d-%H%M")))
+            with open(filepath, 'w') as f:
+                json.dump(to_write, f)
 
 
 class ValidationTest(BaseTest):
