@@ -12,7 +12,7 @@ import os
 
 class BaseTest:
     def __init__(self, model, mode, path, image_size, batch_size, dataset_class,
-            rgb, normalise_gaze):
+            rgb, normalise_gaze, filter_gaze):
         self.iterator = DatasetManager.get_dataset_iterator_for_path(
             path,
             image_size,
@@ -22,7 +22,8 @@ class BaseTest:
             do_augmentation=False,
             dataset_class=dataset_class,
             rgb=rgb,
-            normalise_gaze=normalise_gaze)
+            normalise_gaze=normalise_gaze,
+            filter_gaze=filter_gaze)
         self.path = path
         self.mode = mode
         self.n_batches_per_epoch = int(self.iterator.N / batch_size) + 1
@@ -62,13 +63,13 @@ class Test(BaseTest):
 
         logging.info("Running {} batches...".format(n_batches))
         results = [sess.run(
-            [self.outputs['error_angular'],
+            [self.outputs,
              self.loss])
             for i in range(n_batches)]
 
         # loss_values is a list
         # [[angular, mse, summary], [angular, mse, summary],...]
-        angular_values = [r[0] for r in results]
+        angular_values = [r[0]['error_angular'] for r in results]
         loss_values = [r[1] for r in results]
 
         loss_mean = np.mean(loss_values)
@@ -78,13 +79,22 @@ class Test(BaseTest):
         self._log_result(loss_mean, loss_std, angular_error, step)
 
         if write_folder is not None:
+            # n_batches, batch_size, 2
+            gaze_input = [r[0]['gaze_input'][i] for r in results for i in range(len(r))]
+            gaze_output = [r[0]['gaze_output'][i] for r in results for i in range(len(r))]
             # json.dump does not write C data types. We need built-in data types.
-            to_write = {'loss': [float(l) for l in loss_values],
-                        'angular_error': [float(l) for l in angular_values],
+            to_write = {'loss': self._to_float(loss_values),
+                        'angular_error': self._to_float(angular_values),
+                        'gaze_input': [self._to_float(e) for e in gaze_input],
+                        'gaze_output': [self._to_float(e) for e in gaze_output],
                         'test_path': self.path }
             filepath = os.path.join(write_folder, "{}_test.json".format(datetime.now().strftime("%Y%m%d-%H%M")))
             with open(filepath, 'w') as f:
                 json.dump(to_write, f)
+            logging.info("Written to {}".format(filepath))
+
+    def _to_float(self, values):
+        return [float(v) for v in values]
 
 
 class ValidationTest(BaseTest):
@@ -117,7 +127,7 @@ class ValidationTest(BaseTest):
         self._log_result(loss_mean, loss_std, angular_error, step)
 
 
-def get_validations(gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb, normalise_gaze):
+def get_validations(gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb, normalise_gaze, filter_gaze):
     all_validations = list()
     if path_validation_within is not None:
         all_validations.append(ValidationTest(
@@ -128,7 +138,8 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
             batch_size,
             dataset_class_train,
             rgb=rgb,
-            normalise_gaze=normalise_gaze
+            normalise_gaze=normalise_gaze,
+            filter_gaze=filter_gaze
         )
         )
     if path_validation_unity is not None:
@@ -140,7 +151,8 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
                 batch_size,
                 dataset_class_validation_unity,
             rgb=rgb,
-            normalise_gaze=normalise_gaze
+            normalise_gaze=normalise_gaze,
+            filter_gaze=filter_gaze
             ))
     if path_validation_mpii is not None:
         all_validations.append(ValidationTest(
@@ -151,6 +163,7 @@ def get_validations(gazenet, path_validation_within, dataset_class_train, path_v
         batch_size,
         dataset_class_validation_mpii,
             rgb=rgb,
-            normalise_gaze=normalise_gaze
+            normalise_gaze=normalise_gaze,
+            filter_gaze=filter_gaze
     ))
     return all_validations
