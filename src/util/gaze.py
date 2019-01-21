@@ -1,6 +1,7 @@
 """Utility methods for gaze angle and error calculations."""
 import cv2 as cv
 import numpy as np
+import scipy
 import tensorflow as tf
 
 
@@ -61,11 +62,6 @@ def angular_error(a, b):
     return result
 
 
-def mean_angular_error(a, b):
-    """Calculate mean angular error (via cosine similarity)."""
-    return np.mean(angular_error(a, b))
-
-
 def tensorflow_angular_error_from_pitchyaw(y_true, y_pred):
     """Tensorflow method to calculate angular loss from head angles."""
     def angles_to_unit_vectors(y):
@@ -105,9 +101,27 @@ def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0
     image_out = np.ascontiguousarray(image_in, dtype=np.int32)
     dx = -length * np.sin(pitchyaw[1])
     dy = -length * np.sin(pitchyaw[0])
+    # We enlarge the image such that the gaze arrows fit into the image
+    image_out = scipy.misc.imresize(image_out, 2.0)
+    # The eye position needs to be enlarged, too
+    eye_pos = tuple(np.multiply(np.array(eye_pos), 2))
     cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
                    tuple(np.round([eye_pos[0] + dx, eye_pos[1] + dy]).astype(int)), color,
                    thickness, cv.LINE_AA, tipLength=0.2)
     return image_out
 
 
+def mse(a, b):
+    return np.mean(np.sqrt(
+        np.square(a - b)
+    ), axis=1)
+
+
+def euclidean_error(a, b):
+    a = pitchyaw_to_vector(a) if a.shape[1] == 2 else a
+    b = pitchyaw_to_vector(b) if b.shape[1] == 2 else b
+
+    elementwise_error = np.sqrt(
+        np.square(a - b)
+    )
+    return np.sum(elementwise_error, axis=1)

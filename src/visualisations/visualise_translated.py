@@ -1,6 +1,8 @@
 from collections import OrderedDict
 
 import matplotlib.pyplot as plt
+from matplotlib.widgets import TextBox
+
 from visualisations.data_loading import MPIIDataLoader, RefinedMPIIDataLoader, UnityDataLoader, RefinedUnityDataLoader
 import h5py
 import numpy as np
@@ -9,7 +11,7 @@ import os
 import tensorflow as tf
 from models.gazenet import GazeNetInference
 from util.files import listdir
-import cv2
+from util.gaze import angular_error, euclidean_error, mse
 from input.preprocessing import RefinedPreprocessor
 
 
@@ -65,7 +67,7 @@ class Visualisation:
         return images_preprocessed
 
     @staticmethod
-    def dg(img, gaze, color, length=100, thickness=1):
+    def dg(img, gaze, color, length=100, thickness=2):
         return draw_gaze(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
             gaze, length=length, thickness=thickness, color=color,
@@ -74,6 +76,13 @@ class Visualisation:
     def gray2rgb(self, image):
         image = np.expand_dims(image, axis=2)
         return np.repeat(image, 3, 2)
+
+    def rgb2gray(self, image):
+        image = np.mean(image, axis=2)
+        return self.gray2rgb(image)
+
+    def format_gaze(self, gaze):
+        return "{:.2f}, {:.2f}".format(gaze[0], gaze[1])
 
 
 class M2UVisualisation(Visualisation):
@@ -93,50 +102,68 @@ class M2UVisualisation(Visualisation):
 
     def visualise(self, identifiers):
         N = len(identifiers)
-        fig, axes = plt.subplots(nrows=N, ncols=2, figsize=(20, 20))
+        fig, axes = plt.subplots(nrows=N, ncols=3, figsize=(20, 20))
 
         # Axis labels
         cols = ["MPII (R)", "Refined MPII (S')"]
         for ax, col in zip(axes[0], cols):
             # Column title
             ax.set_title(col)
-        # Labels for each image
-        for ax, row in zip(axes[:, 0], identifiers):
-            ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
-        for ax, row in zip(axes[:, 1], identifiers):
-            ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
 
         original_data, refined_data = self.get_data(identifiers)
 
         # Get the predictions for translated images
         images_refined = [refined_data[key]['eye'] for key in identifiers]
         images_preprocessed = self.preprocess(images_refined)
+
         if self.predict_gaze:
             gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
+            gaze_true = np.array([original_data[
+                                           (pi, ii)][
+                                           'gaze'] for pi, ii in identifiers])
+            gaze_error = angular_error(gaze_pred, gaze_true)
+            eucl_gaze_error = euclidean_error(gaze_pred, gaze_true)
+            ms_error = mse(gaze_pred, gaze_true)
 
-        for i, (person_identifier, img_index) in enumerate(identifiers):
-            row = i
+        # Sort by ascending prediction error (if applicable)
+        if self.predict_gaze:
+            indices = np.argsort(gaze_error)
+        else:
+            indices = np.argsort(identifiers)
+
+        for row, i in enumerate(indices):
+            person_identifier = identifiers[i][0]
+            img_index = identifiers[i][1]
+
+            info_txt = ""
             axes[row, 0].axis("off")
             axes[row, 1].axis("off")
             img_original = original_data[(person_identifier, img_index)]['eye']
             img_refined = refined_data[(person_identifier, img_index)]['eye']
 
             if len(img_refined.shape) == 2:
+                img_original = self.rgb2gray(img_original)
                 img_refined = self.gray2rgb(img_refined)
 
             if self.do_draw_gaze:
                 img_original = self.dg(img_original, original_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
                 img_refined = self.dg(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
+                info_txt = "{} \n true pitch / yaw: {}".format(info_txt, self.format_gaze(original_data[(person_identifier, img_index)]['gaze']))
                 if self.predict_gaze:
                     img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+                    info_txt = "{} \n predicted pitch / yaw: {} " \
+                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
+                        format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
 
             axes[row, 0].imshow(img_original)
             axes[row, 1].imshow(img_refined)
+            TextBox(axes[row, 2], person_identifier, initial=info_txt)
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
         # plt.show()
         plt.savefig(os.path.join('../visualisations/', self.name_out))
+        plt.close(fig)
 
 
 class U2MVisualisation(Visualisation):
@@ -158,19 +185,12 @@ class U2MVisualisation(Visualisation):
 
     def visualise(self, identifiers):
         N = len(identifiers)
-        fig, axes = plt.subplots(nrows=N, ncols=3, figsize=(20, 20))
+        fig, axes = plt.subplots(nrows=N, ncols=4, figsize=(20, 20))
 
         # Axis labels
         cols = ["Unity (S) full", "Unity (S) cropped", "Refined Unity (R')"]
         for ax, col in zip(axes[0], cols):
             ax.set_title(col)
-        for ax, row in zip(axes[:, 0], identifiers):
-            ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
-        for ax, row in zip(axes[:, 1], identifiers):
-            ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
-        for ax, row in zip(axes[:, 2], identifiers):
-            ax.text(s=row.__str__(), x=0.5, y=0.9, size='large')
-
         original_data, refined_data = self.get_data(identifiers)
 
         # Get the predictions for translated images
@@ -178,9 +198,22 @@ class U2MVisualisation(Visualisation):
         images_preprocessed = self.preprocess(images_refined)
         if self.predict_gaze:
             gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
+            gaze_true = np.array([original_data[i][
+                                           'gaze'] for i in identifiers])
+            gaze_error = angular_error(gaze_pred, gaze_true)
 
-        for i, file_stem in enumerate(identifiers):
-            row = i
+            eucl_gaze_error = euclidean_error(gaze_pred, gaze_true)
+            ms_error = mse(gaze_pred, gaze_true)
+
+        # Sort by ascending prediction error (if applicable)
+        if self.predict_gaze:
+            indices = np.argsort(gaze_error)
+        else:
+            indices = np.argsort(identifiers)
+
+        for row, i in enumerate(indices):
+            info_txt = ""
+            file_stem = identifiers[i]
             axes[row, 0].axis("off")
             axes[row, 1].axis("off")
             img_original_full = original_data[file_stem]['eye']
@@ -194,18 +227,27 @@ class U2MVisualisation(Visualisation):
             if self.do_draw_gaze:
                 img_original_full = self.dg(img_original_full, original_data[file_stem]['gaze'], length=400, thickness=5, color=self.color_true)
                 img_original = self.dg(img_original, original_data[file_stem]['gaze'], color=self.color_true)
-                img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], length=100, color=self.color_true)
+                img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], color=self.color_true)
+                info_txt = "{} \n true pitch / yaw: {}".format(info_txt,
+                                                        self.format_gaze(
+                                                            original_data[file_stem][
+                                                                'gaze']))
                 if self.predict_gaze:
                     img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+                    info_txt = "{} \n predicted pitch / yaw: {} " \
+                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
+                        format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
 
             axes[row, 0].imshow(img_original_full)
             axes[row, 1].imshow(img_original)
             axes[row, 2].imshow(img_refined)
+            TextBox(axes[row, 3], file_stem, initial=info_txt)
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
         # plt.show()
         plt.savefig(os.path.join('../visualisations/', self.name_out))
+        plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -219,17 +261,26 @@ if __name__ == "__main__":
     # BASIC GAN
     # models["20181229-1345"] = {"U2M": ("20181230-1219_gazenet_u2m_augmented", "gazenet_u2m_augmented")}
     # SIMPLISTIC GAN
-    models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
+    # models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
     # EGE GAN
+    models["20190120-1420_ege_l1"] = {"U2M": ()}
     models["20190112-1740_ege_l5"] = {"U2M": ()}
     models["20190113-1455_ege_l8"] = {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
     models["20190114-0959_ege_l15"] = {"U2M": ()}
+    models["20190118-1522_ege_l30"] = {"U2M": ()}
+    models["20190118-1542_ege_l50"] = {"U2M": ()}
+
+    models["20190120-1421_ege_l1_id1"] = {"U2M": ()}
     models["20190116-1225_ege_l10_id5"] = {"U2M": ()}
+    models["20190115-1856_ege_l15_id10"] = {"U2M": ()}
     # LM GANs
+    models["20190120-1423_lm_l1"] = {"U2M": ()}
     models["20190116-2156_lm_l5"] = {"U2M": ()}
     models["20190117-1430_lm_l8"] = {"U2M": ()}
     models["20190116-2305_lm_l15"] = {"U2M": ()}
+
     models["20190117-1548_lm_l10_id5"] = {"U2M": ()}
+    models["20190120-1424_lm_l1_id1"] = {"U2M": ()}
 
     for model_identifier in models.keys():
         print("Processing model identifier {}...".format(model_identifier))
