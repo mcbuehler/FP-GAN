@@ -40,6 +40,7 @@ def train():
     do_augmentation = cfg.get('augmentation')
     rgb = cfg.get('rgb')
     normalise_gaze = cfg.get('normalise_gaze')
+    filter_gaze = cfg.get('filter_gaze')
     # Indicates whether we are loading an existing model
     # or train a new one. Will be set to true below if we load an existing model.
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
@@ -53,12 +54,6 @@ def train():
         os.makedirs(checkpoints_dir)
     except os.error:
         pass
-
-    # if rgb:
-    #     image_dimensions = [batch_size, *image_size, 3]
-    # else:
-    #     image_dimensions = [batch_size, *image_size, 1]
-    # model_manager = ModelManager(os.path.join(checkpoints_dir, "saved_model"), image_dimensions)
 
     logging.info("Checkpoint directory: {}".format(checkpoints_dir))
 
@@ -92,7 +87,7 @@ def train():
                 path_train, image_size, batch_size,
                 shuffle=True, repeat=True, do_augmentation=do_augmentation,
                 dataset_class=dataset_class_train, rgb=rgb,
-                normalise_gaze=normalise_gaze
+                normalise_gaze=normalise_gaze, filter_gaze=filter_gaze
             )
             _, loss_train = gazenet.get_loss(
                 train_iterator, is_training=True,
@@ -110,7 +105,7 @@ def train():
         # We do this after tf.summary_merge_all because we don't want to create
         # summaries for every step
         all_validations = get_validations(
-            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb=rgb, normalise_gaze=normalise_gaze
+            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb=rgb, normalise_gaze=normalise_gaze, filter_gaze=filter_gaze
         )
 
         if load_model:# and False:
