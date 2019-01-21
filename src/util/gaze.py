@@ -111,6 +111,25 @@ def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0
     return image_out
 
 
+def draw_gaze_py(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0, 255)):
+    """Draw gaze angle on given image with a given eye positions."""
+    image_out = np.ascontiguousarray(image_in, dtype=np.int32)
+    pitch, yaw = - np.array(pitchyaw) * image_in.shape[:2] * 2
+    # dx = -length * np.sin(pitchyaw[1])
+    # dy = -length * np.sin(pitchyaw[0])
+    # We enlarge the image such that the gaze arrows fit into the image
+    image_out = scipy.misc.imresize(image_out, 2.0)
+    # The eye position needs to be enlarged, too
+    eye_pos = tuple(np.multiply(np.array(eye_pos), 2))
+    cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
+                   tuple(np.round([eye_pos[0], eye_pos[1] + pitch]).astype(int)), color,
+                   thickness, cv.LINE_AA, tipLength=0.2)
+    cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
+                   tuple(np.round([eye_pos[0] + yaw, eye_pos[1]]).astype(int)), color,
+                   thickness, cv.LINE_AA, tipLength=0.2)
+    return image_out
+
+
 def mse(a, b):
     return np.mean(np.sqrt(
         np.square(a - b)

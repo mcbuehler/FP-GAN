@@ -6,7 +6,7 @@ from matplotlib.widgets import TextBox
 from visualisations.data_loading import MPIIDataLoader, RefinedMPIIDataLoader, UnityDataLoader, RefinedUnityDataLoader
 import h5py
 import numpy as np
-from util.gaze import draw_gaze
+from util.gaze import draw_gaze, draw_gaze_py
 import os
 import tensorflow as tf
 from models.gazenet import GazeNetInference
@@ -69,6 +69,13 @@ class Visualisation:
     @staticmethod
     def dg(img, gaze, color, length=100, thickness=2):
         return draw_gaze(
+            img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
+            gaze, length=length, thickness=thickness, color=color,
+        )
+
+    @staticmethod
+    def dg_py(img, gaze, color, length=100, thickness=2):
+        return draw_gaze_py(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
             gaze, length=length, thickness=thickness, color=color,
         )
@@ -147,10 +154,11 @@ class M2UVisualisation(Visualisation):
 
             if self.do_draw_gaze:
                 img_original = self.dg(img_original, original_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
-                img_refined = self.dg(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
+                img_refined = self.dg_py(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
                 info_txt = "{} \n true pitch / yaw: {}".format(info_txt, self.format_gaze(original_data[(person_identifier, img_index)]['gaze']))
                 if self.predict_gaze:
-                    img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+                    # img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+                    img_refined = self.dg_py(img_refined, gaze_pred[i], color=self.color_predicted)
                     info_txt = "{} \n predicted pitch / yaw: {} " \
                                "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
                         format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
@@ -227,13 +235,13 @@ class U2MVisualisation(Visualisation):
             if self.do_draw_gaze:
                 img_original_full = self.dg(img_original_full, original_data[file_stem]['gaze'], length=400, thickness=5, color=self.color_true)
                 img_original = self.dg(img_original, original_data[file_stem]['gaze'], color=self.color_true)
-                img_refined = self.dg(img_refined, refined_data[file_stem]['gaze'], color=self.color_true)
+                img_refined = self.dg_py(img_refined, refined_data[file_stem]['gaze'], color=self.color_true)
                 info_txt = "{} \n true pitch / yaw: {}".format(info_txt,
                                                         self.format_gaze(
                                                             original_data[file_stem][
                                                                 'gaze']))
                 if self.predict_gaze:
-                    img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
+                    img_refined = self.dg_py(img_refined, gaze_pred[i], color=self.color_predicted)
                     info_txt = "{} \n predicted pitch / yaw: {} " \
                                "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
                         format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
@@ -261,7 +269,7 @@ if __name__ == "__main__":
     # BASIC GAN
     # models["20181229-1345"] = {"U2M": ("20181230-1219_gazenet_u2m_augmented", "gazenet_u2m_augmented")}
     # SIMPLISTIC GAN
-    # models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
+    models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
     # EGE GAN
     models["20190120-1420_ege_l1"] = {"U2M": ()}
     models["20190112-1740_ege_l5"] = {"U2M": ()}
