@@ -92,7 +92,16 @@ class BaseGazeNet:
         input_gaze = input_batch['gaze']
         output = self.forward(input_eye, mode=mode, is_training=is_training)
 
-        loss_gaze = tf.reduce_mean(tf.squared_difference(output, input_gaze))
+        if self.normalise_gaze:
+            # We have gaze in the range from [-1, 1]
+            # Convert gaze back to range [-pi, pi]
+            input_gaze_unnormalised = input_gaze * np.pi
+            output_unnormalised = output * np.pi
+        else:
+            input_gaze_unnormalised = input_gaze
+            output_unnormalised = output
+
+        loss_gaze = tf.reduce_mean(tf.squared_difference(output_unnormalised, input_gaze_unnormalised))
 
         if regulariser is not None:
             # We add a regulariser
@@ -107,27 +116,19 @@ class BaseGazeNet:
             # we do not regularise
             loss = loss_gaze
 
-        if self.normalise_gaze:
-            # We have gaze in the range from [-1, 1]
-            # Convert gaze back to range [-pi, pi]
-            input_gaze_unnormalised = input_gaze * np.pi
-            output_unnormalised = output * np.pi
-        else:
-            input_gaze_unnormalised = input_gaze
-            output_unnormalised = output
         error_angular = gaze.tensorflow_angular_error_from_pitchyaw(input_gaze_unnormalised, output_unnormalised)
 
         # Create summaries
-        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=3, collections=[summary_key])
+        tf.summary.image(self.create_name('input/eye', summary_pref), input_eye, max_outputs=1, collections=[summary_key])
 
         tf.summary.histogram(self.create_name('input/eye', summary_pref), input_eye, collections=[summary_key])
-        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze, collections=[summary_key])
-        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output, collections=[summary_key])
+        tf.summary.histogram(self.create_name('input/gaze', summary_pref), input_gaze_unnormalised, collections=[summary_key])
+        tf.summary.histogram(self.create_name('output/gaze', summary_pref), output_unnormalised, collections=[summary_key])
 
         tf.summary.scalar(self.create_name('loss/gaze_mse', summary_pref), loss_gaze, collections=[summary_key])
         tf.summary.scalar(self.create_name('angular_error', summary_pref), error_angular, collections=[summary_key])
 
-        return {'gaze': output, 'error_angular': error_angular}, loss
+        return {'gaze_output': output_unnormalised, 'gaze_input': input_gaze_unnormalised, 'error_angular': error_angular}, loss
 
     def optimize(self, loss):
         def make_optimizer(loss, variables=None, name='Adam'):
