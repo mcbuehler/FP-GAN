@@ -209,8 +209,8 @@ class M2UVisualisation(Visualisation):
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
-        plt.show()
-        # plt.savefig(os.path.join('../visualisations/', self.name_out))
+        # plt.show()
+        plt.savefig(os.path.join('../visualisations/', self.name_out))
         plt.close(fig)
 
 
@@ -300,8 +300,8 @@ class U2MVisualisation(Visualisation):
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
-        plt.show()
-        # plt.savefig(os.path.join('../visualisations/', self.name_out))
+        # plt.show()
+        plt.savefig(os.path.join('../visualisations/', self.name_out))
         plt.close(fig)
 
 
