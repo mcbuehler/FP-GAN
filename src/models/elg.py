@@ -2,6 +2,8 @@
 import numpy as np
 import scipy
 import tensorflow as tf
+from util.model_utils import restore_model
+
 
 
 def _tf_mse(x, y):
@@ -290,3 +292,30 @@ class ELG:
                 lmrk_ys * (h - 1.0) + 0.5,
             ], axis=2)  # N x 18 x 2
 
+
+class ELGInference:
+    def __init__(self, sess, checkpoint_path, batch_size, image_size):
+        self.sess = sess
+        self.checkpoint_path = checkpoint_path
+        self.elg = ELG(num_feature_maps=64)
+        self.batch_size = batch_size
+        self.image_size = image_size
+
+        self.in_tensor, self.out_tensor = self.build_model()
+
+    def build_model(self):
+        in_tensor = tf.placeholder(tf.float32,
+                                   (self.batch_size,
+                                    *self.image_size, 1)
+                                   )
+        out_tensor, _, _ = self.elg.build_model(in_tensor)
+        return in_tensor, out_tensor
+
+    def predict(self, images_preprocessed):
+        restore_model(self.checkpoint_path, sess=self.sess, is_model_path=True, variables_scope='hourglass')
+
+        output = self.sess.run(self.out_tensor,
+                             feed_dict={self.in_tensor: images_preprocessed})
+
+        landmarks = output['landmarks']
+        return landmarks
