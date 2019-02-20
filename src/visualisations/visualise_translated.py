@@ -15,7 +15,11 @@ from util.gaze import angular_error, euclidean_error, mse
 from input.preprocessing import RefinedPreprocessor
 from models.elg import ELGInference
 
+
 class Visualisation:
+    """
+    Base class for visualising translated images.
+    """
     def __init__(self,
                  dl_original,
                  dl_refined,
@@ -29,6 +33,21 @@ class Visualisation:
                  gazenet_name,
                  name_out='mpii_vs_refined-mpii.png',
                  do_draw_gaze=True):
+        """
+        Args:
+            dl_original: DataLoader for original images
+            dl_refined: DataLoader for refined images
+            sess: tensorflow session
+            path_ege: path to model for eye gaze estimation
+            path_elg: path to model for landmark detection
+            n_images: number of images to display
+            image_size: image size to load
+            norm: TODO probably not used
+            normalise_gaze: whether to normalise the gaze or not
+            gazenet_name: corresponds to scope of saved weigths
+            name_out: filename of saved figure
+            do_draw_gaze: indicates whether we draw the gaze direction or not
+        """
         self.name_out = name_out
         self.dl_original = dl_original
         self.dl_refined = dl_refined
@@ -67,20 +86,41 @@ class Visualisation:
         raise NotImplementedError()
 
     def preprocess(self, images):
+        """
+        We apply simple preprocessing in order for consistency.
+        Args:
+            images: tensor containing images.
+                images may be both gray-scale or RGB.
+
+        Returns: preprocessed images
+
+        """
         preprocessor = RefinedPreprocessor(do_augmentation=False,
                                            eye_image_shape=(36, 60))
         images_preprocessed = [preprocessor.preprocess(img)[0] for img in
                                images]
         if len(images_preprocessed[0].shape) == 3:
-            # We got a rgb image
-            images_preprocessed = [np.mean(img, axis=2) for
+            # We got a rgb image, so we convert it to gray-scale
+            images_preprocessed = [self.rgb2gray(img) for
                                img in images_preprocessed]
-
-        images_preprocessed = [np.expand_dims(img, axis=2) for img in images_preprocessed]
+        # We want to return a gray-scale image that uses all three RGB channels
+        images_preprocessed = [self.gray2rgb(img) for img in images_preprocessed]
         return images_preprocessed
 
     @staticmethod
     def dg(img, gaze, color, length=100, thickness=2):
+        """
+        Draws a single eye gaze direction vector in img.
+        We calculate a single vector from pitch and yaw.
+        Args:
+            img: a single image
+            gaze: 2D pitch / yaw gaze direction
+            color: color of gaze arrow
+            length: length of gaze arrow
+            thickness: thickness of gaze arrow
+
+        Returns: img with gaze direction
+        """
         return draw_gaze(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
             gaze, length=length, thickness=thickness, color=color,
@@ -88,6 +128,17 @@ class Visualisation:
 
     @staticmethod
     def dg_py(img, gaze, color, length=100, thickness=2):
+        """
+        Draws two eye gaze vectors in img (pitch and yaw).
+        Args:
+            img: a single image
+            gaze: 2D pitch / yaw gaze direction
+            color: color of gaze arrow
+            length: length of gaze arrow
+            thickness: thickness of gaze arrow
+
+        Returns: img with gaze direction vectors
+        """
         return draw_gaze_py(
             img, (0.5 * img.shape[1], 0.5 * img.shape[0]),
             gaze, length=length, thickness=thickness, color=color,
@@ -95,6 +146,16 @@ class Visualisation:
 
     @staticmethod
     def draw_landmarks(img, coordinates, color):
+        """
+        Visualises the landmarks on img
+        Args:
+            img: an image
+            coordinates: output of landmark detection model
+            color: color of landmarks
+
+        Returns:
+
+        """
         import cv2
         for c in coordinates:
             # type 2: stars
@@ -103,17 +164,49 @@ class Visualisation:
         return img
 
     def gray2rgb(self, image):
+        """
+        Expands the dimensions of a gray-scale image such that it has three
+            dimensions.
+        Args:
+            image: a single image
+
+        Returns: image with three channels
+        """
         image = np.expand_dims(image, axis=2)
         return np.repeat(image, 3, 2)
 
     def rgb2gray(self, image):
+        """
+        Converts an RGB image to gray-scale
+        Args:
+            image: a single image
+
+        Returns: gray-scale image (single channel)
+        """
         image = np.mean(image, axis=2)
         return self.gray2rgb(image)
 
-    def format_gaze(self, gaze):
+    @staticmethod
+    def format_gaze(gaze):
+        """
+        Helper function to format eye gaze direction
+        Args:
+            gaze: pitch / yaw
+
+        Returns: formatted string
+        """
         return "{:.2f}, {:.2f}".format(gaze[0], gaze[1])
 
     def _gaze_error(self, images_preprocessed, gaze_true):
+        """
+        Calculates the gaze error
+        Args:
+            images_preprocessed: images ready for eye gaze prediction
+            gaze_true: true labels
+
+        Returns: predicted gaze,
+            angular error, euclidean error, mean squared error
+        """
         gaze_pred = self.gazenet_inference.predict_gaze(images_preprocessed)
         gaze_error = angular_error(gaze_pred, gaze_true)
         eucl_gaze_error = euclidean_error(gaze_pred, gaze_true)
@@ -121,11 +214,29 @@ class Visualisation:
         return gaze_pred, gaze_error, eucl_gaze_error, ms_error
 
     def _predict_landmarks(self, images_preprocessed):
+        """
+        Predicts the landmarks for preprocessed images
+        Args:
+            images_preprocessed: images ready for landmark prediction
+
+        Returns:
+        """
         return self.elg_inference.predict(images_preprocessed)
 
 
 class M2UVisualisation(Visualisation):
+    """
+    Visualisation class for real images and their translations.
+    """
+
     def sample_identifiers(self, path_original):
+        """
+        Create random samples from h5 file.
+        Args:
+            path_original: path to original h5 file
+
+        Returns: random samples of identifiers as list of tuples
+        """
         samples = list()
         with h5py.File(path_original, 'r') as hf:
             for person_identifier in hf:
@@ -135,11 +246,26 @@ class M2UVisualisation(Visualisation):
         return samples[:self.n_images]
 
     def get_data(self, identifiers=None):
+        """
+        Load data using DataLoaders
+        Args:
+            identifiers: tuples of identifiers
+        Returns: data for original images, data for refined images
+        """
         mpii_data = self.dl_original.get_data(identifiers)
         m2u_data = self.dl_refined.get_data(identifiers)
         return mpii_data, m2u_data
 
-    def visualise(self, identifiers):
+    def visualise(self, identifiers, show=False, save=True):
+        """
+        Create the visualisations for given identifiers
+        Args:
+            identifiers:  tuples of identifiers
+            show: whether to show result
+            save: whether to save figure
+
+        Returns:
+        """
         N = len(identifiers)
         fig, axes = plt.subplots(nrows=N, ncols=3, figsize=(20, 20))
 
@@ -209,14 +335,27 @@ class M2UVisualisation(Visualisation):
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
 
-        # plt.show()
-        plt.savefig(os.path.join('../visualisations/', self.name_out))
+        if show:
+            plt.show()
+        if save:
+            plt.savefig(os.path.join('../visualisations/', self.name_out))
         plt.close(fig)
 
 
 class U2MVisualisation(Visualisation):
+    """
+    Visualisation class for synthetic images and their translations.
+    """
 
     def sample_identifiers(self, path_original, path_refined):
+        """
+        Create random samples for dataset.
+        Args:
+            path_original: path to folder containing images
+            path_refined: path to folder containing translated images
+
+        Returns: random samples of identifiers (size: self.n_images)
+        """
         file_stems = listdir(path_original, postfix='.jpg',
                              return_postfix=False)
         index = list()
@@ -229,9 +368,25 @@ class U2MVisualisation(Visualisation):
         return index
 
     def get_data(self, identifiers=None):
+        """
+        Loads the data from DataLoaders
+        Args:
+            identifiers: list of ids
+
+        Returns: data for original, data for refined
+        """
         return self.dl_original.get_data(identifiers), self.dl_refined.get_data(identifiers)
 
-    def visualise(self, identifiers):
+    def visualise(self, identifiers, show=False, save=True):
+        """
+        Create the visualisations for given identifiers
+        Args:
+            identifiers:  ids
+            show: whether to show result
+            save: whether to save figure
+
+        Returns:
+        """
         N = len(identifiers)
         fig, axes = plt.subplots(nrows=N, ncols=4, figsize=(20, 20))
 
@@ -299,9 +454,10 @@ class U2MVisualisation(Visualisation):
             TextBox(axes[row, 3], file_stem, initial=info_txt)
 
         plt.subplots_adjust(wspace=.0005, hspace=0.0001, bottom=0, top=0.95)
-
-        # plt.show()
-        plt.savefig(os.path.join('../visualisations/', self.name_out))
+        if show:
+            plt.show()
+        if save:
+            plt.savefig(os.path.join('../visualisations/', self.name_out))
         plt.close(fig)
 
 
@@ -321,23 +477,27 @@ if __name__ == "__main__":
     # TODO
     # models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
     # EGE GAN
-    models["20190120-1420_ege_l1"] = {"U2M": ()}
-    models["20190112-1740_ege_l5"] = {"U2M": ()}
-    models["20190113-1455_ege_l8"] = {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
-    models["20190114-0959_ege_l15"] = {"U2M": ()}
-    models["20190118-1522_ege_l30"] = {"U2M": ()}
-    models["20190118-1542_ege_l50"] = {"U2M": ()}
-
-    models["20190120-1421_ege_l1_id1"] = {"U2M": ()}
-    models["20190115-1856_ege_l15_id10"] = {"U2M": ()}
-    # LM GANs
-    models["20190120-1423_lm_l1"] = {"U2M": ()}
-    models["20190116-2156_lm_l5"] = {"U2M": ()}
-    models["20190117-1430_lm_l8"] = {"U2M": ()}
-    models["20190116-2305_lm_l15"] = {"U2M": ()}
+    # models["20190120-1420_ege_l1"] = {"U2M": ()}
+    # models["20190112-1740_ege_l5"] = {"U2M": ()}
+    # models["20190113-1455_ege_l8"] = {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
+    # models["20190114-0959_ege_l15"] = {"U2M": ()}
+    # models["20190118-1522_ege_l30"] = {"U2M": ()}
+    # models["20190118-1542_ege_l50"] = {"U2M": ()}
     #
-    # TODO models["20190120-1424_lm_l1_id1"] = {"U2M": ()}
-    models["20190117-1548_lm_l10_id5"] = {"U2M": ()}
+    # models["20190120-1421_ege_l1_id1"] = {"U2M": ()}
+    # models["20190115-1856_ege_l15_id10"] = {"U2M": ()}
+    # # LM GANs
+    # models["20190120-1423_lm_l1"] = {"U2M": ()}
+    # models["20190116-2156_lm_l5"] = {"U2M": ()}
+    # models["20190117-1430_lm_l8"] = {"U2M": ()}
+    # models["20190116-2305_lm_l15"] = {"U2M": ()}
+    # #
+    # # TODO models["20190120-1424_lm_l1_id1"] = {"U2M": ()}
+    # models["20190117-1548_lm_l10_id5"] = {"U2M": ()}
+
+    models["20190122-2251_rhp_ege_30"] = {"U2M": ()}
+    models["20190123-0840_rhp_ege_20_id1"] = {"U2M": ()}
+    models["20190123-1455_rhp_id2"] = {"U2M": ()}
 
     for model_identifier in models.keys():
         print("Processing model identifier {}...".format(model_identifier))
