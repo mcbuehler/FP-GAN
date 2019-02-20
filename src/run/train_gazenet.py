@@ -114,7 +114,7 @@ def train():
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
             restore = tf.train.import_meta_graph(meta_graph_path)
             restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
-            step = int(meta_graph_path.split("-")[2].split(".")[0])
+            step = int(meta_graph_path.split("-")[-1].split(".")[0])
         else:
             logging.info("Training new model. Checkpoint directory: {}".format(checkpoints_dir))
             # We copy config file
