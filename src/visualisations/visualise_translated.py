@@ -1,25 +1,23 @@
-from collections import OrderedDict
+import os
 
+import h5py
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.widgets import TextBox
 
-from visualisations.data_loading import MPIIDataLoader, RefinedMPIIDataLoader, UnityDataLoader, RefinedUnityDataLoader
-import h5py
-import numpy as np
-from util.gaze import draw_gaze, draw_gaze_py
-import os
-import tensorflow as tf
-from models.gazenet import GazeNetInference
-from util.files import listdir
-from util.gaze import angular_error, euclidean_error, mse
 from input.preprocessing import RefinedPreprocessor
 from models.elg import ELGInference
+from models.gazenet import GazeNetInference
+from util.files import listdir
+from util.gaze import draw_gaze, draw_gaze_py, angular_error, euclidean_error, \
+    mse
 
 
 class Visualisation:
     """
     Base class for visualising translated images.
     """
+
     def __init__(self,
                  dl_original,
                  dl_refined,
@@ -106,9 +104,10 @@ class Visualisation:
         if len(images_preprocessed[0].shape) == 3:
             # We got a rgb image, so we convert it to gray-scale
             images_preprocessed = [self.rgb2gray(img) for
-                               img in images_preprocessed]
+                                   img in images_preprocessed]
         # We want to return a gray-scale image with an explicit channel
-        images_preprocessed = [np.expand_dims(img, axis=2) for img in images_preprocessed]
+        images_preprocessed = [np.expand_dims(img, axis=2) for img in
+                               images_preprocessed]
         return images_preprocessed
 
     @staticmethod
@@ -164,7 +163,8 @@ class Visualisation:
         for c in coordinates:
             # type 2: stars
             # size: in pixels
-            img = cv2.drawMarker(img, tuple(c), color=color, markerType=2, markerSize=1)
+            img = cv2.drawMarker(img, tuple(c), color=color, markerType=2,
+                                 markerSize=1)
         return img
 
     def gray2rgb(self, image):
@@ -278,7 +278,8 @@ class M2UVisualisation(Visualisation):
         N = len(identifiers)
         print("Visualising {} samples...".format(N))
         ncols = 3 if self.do_plot_infobox else 2
-        fig, axes = plt.subplots(nrows=N, ncols=ncols, figsize=(self.figsize, self.figsize))
+        fig, axes = plt.subplots(nrows=N, ncols=ncols,
+                                 figsize=(self.figsize, self.figsize))
 
         # Axis labels
         cols = ["MPII (R)", "Refined MPII (S')"]
@@ -328,15 +329,27 @@ class M2UVisualisation(Visualisation):
                                     self.color_lm_refined)
 
             if self.do_draw_gaze:
-                img_original = self.dg_py(img_original, original_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
-                img_refined = self.dg_py(img_refined, refined_data[(person_identifier, img_index)]['gaze'], color=self.color_true)
-                info_txt = "{} \n true pitch / yaw: {}".format(info_txt, self.format_gaze(original_data[(person_identifier, img_index)]['gaze']))
+                img_original = self.dg_py(img_original, original_data[
+                    (person_identifier, img_index)]['gaze'],
+                                          color=self.color_true)
+                img_refined = self.dg_py(img_refined, refined_data[
+                    (person_identifier, img_index)]['gaze'],
+                                         color=self.color_true)
+                info_txt = "{} \n true pitch / yaw: {}".format(info_txt,
+                                                               self.format_gaze(
+                                                                   original_data[
+                                                                       (
+                                                                       person_identifier,
+                                                                       img_index)][
+                                                                       'gaze']))
                 if self.do_predict_gaze:
                     # img_refined = self.dg(img_refined, gaze_pred[i], color=self.color_predicted)
-                    img_refined = self.dg_py(img_refined, gaze_pred[i], color=self.color_predicted)
+                    img_refined = self.dg_py(img_refined, gaze_pred[i],
+                                             color=self.color_predicted)
                     info_txt = "{} \n predicted pitch / yaw: {} " \
-                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
-                        format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
+                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}". \
+                        format(info_txt, self.format_gaze(gaze_pred[i]),
+                               gaze_error[i], eucl_gaze_error[i], ms_error[i])
 
             axes[row, 0].imshow(img_original)
             axes[row, 1].imshow(img_refined)
@@ -372,7 +385,8 @@ class U2MVisualisation(Visualisation):
         c = 0
         while c < self.n_images:
             sample = np.random.choice(file_stems)
-            if os.path.exists(os.path.join(path_refined, "{}.jpg".format(sample))):
+            if os.path.exists(
+                    os.path.join(path_refined, "{}.jpg".format(sample))):
                 index.append(sample)
                 c += 1
         return index
@@ -385,7 +399,8 @@ class U2MVisualisation(Visualisation):
 
         Returns: data for original, data for refined
         """
-        return self.dl_original.get_data(identifiers), self.dl_refined.get_data(identifiers)
+        return self.dl_original.get_data(
+            identifiers), self.dl_refined.get_data(identifiers)
 
     def visualise(self, identifiers, show=False, save=True):
         """
@@ -400,7 +415,8 @@ class U2MVisualisation(Visualisation):
         N = len(identifiers)
         print("Visualising {} samples...".format(N))
         ncols = 4 if self.do_plot_infobox else 3
-        fig, axes = plt.subplots(nrows=N, ncols=ncols, figsize=(self.figsize, self.figsize))
+        fig, axes = plt.subplots(nrows=N, ncols=ncols,
+                                 figsize=(self.figsize, self.figsize))
 
         # Axis labels
         cols = ["Unity (S) full", "Unity (S) cropped", "Refined Unity (R')"]
@@ -413,7 +429,7 @@ class U2MVisualisation(Visualisation):
         images_preprocessed = self.preprocess(images_refined)
         if self.do_predict_gaze:
             gaze_true = np.array([original_data[i][
-                                           'gaze'] for i in identifiers])
+                                      'gaze'] for i in identifiers])
             gaze_pred, gaze_error, eucl_gaze_error, ms_error = self._gaze_error(
                 images_preprocessed,
                 gaze_true
@@ -445,18 +461,27 @@ class U2MVisualisation(Visualisation):
                                     self.color_lm_refined)
 
             if self.do_draw_gaze:
-                # img_original_full = self.dg_py(img_original_full, original_data[file_stem]['gaze'], length=400, thickness=5, color=self.color_true)
-                img_original = self.dg_py(img_original, original_data[file_stem]['gaze'], color=self.color_true)
-                img_refined = self.dg_py(img_refined, refined_data[file_stem]['gaze'], color=self.color_true)
+                # img_original_full = self.dg_py(img_original_full,
+                # original_data[file_stem]['gaze'], length=400, thickness=5,
+                # color=self.color_true)
+                img_original = self.dg_py(img_original,
+                                          original_data[file_stem]['gaze'],
+                                          color=self.color_true)
+                img_refined = self.dg_py(img_refined,
+                                         refined_data[file_stem]['gaze'],
+                                         color=self.color_true)
                 info_txt = "{} \n true pitch / yaw: {}".format(info_txt,
-                                                        self.format_gaze(
-                                                            original_data[file_stem][
-                                                                'gaze']))
+                                                               self.format_gaze(
+                                                                   original_data[
+                                                                       file_stem][
+                                                                       'gaze']))
                 if self.do_predict_gaze:
-                    img_refined = self.dg_py(img_refined, gaze_pred[i], color=self.color_predicted)
+                    img_refined = self.dg_py(img_refined, gaze_pred[i],
+                                             color=self.color_predicted)
                     info_txt = "{} \n predicted pitch / yaw: {} " \
-                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}".\
-                        format(info_txt, self.format_gaze(gaze_pred[i]), gaze_error[i], eucl_gaze_error[i], ms_error[i])
+                               "\n error angular / euclidean / mse: {:.2f} / {:.2f} / {:.2f}". \
+                        format(info_txt, self.format_gaze(gaze_pred[i]),
+                               gaze_error[i], eucl_gaze_error[i], ms_error[i])
 
             axes[row, 0].imshow(img_original_full)
             axes[row, 1].imshow(img_original)
@@ -470,111 +495,3 @@ class U2MVisualisation(Visualisation):
         if save:
             self.save_fig(plt)
         plt.close(fig)
-
-
-if __name__ == "__main__":
-    M2U = True
-    # M2U = False
-    U2M = True
-    # U2M = False
-
-    path_elg = "../outputs_elg/ELG_i120x72_f60x36_n64_m3/checkpoints/hourglass/model-1295134"
-
-    # GAN identifier: {"U2M": (EGE Identifier, EGE name)}
-    models = OrderedDict()
-    # BASIC GAN
-    # models["20181229-1345"] = {"U2M": ("20181230-1219_gazenet_u2m_augmented", "gazenet_u2m_augmented")}
-    # SIMPLISTIC GAN
-    # TODO
-    models["20190105-1325"] = {"U2M": ("20190108-1308_gazenet_u2m_augmented_bw", "gazenet_u2m_augmented_bw")}
-    # EGE GAN
-    # models["20190120-1420_ege_l1"] = {"U2M": ()}
-    # models["20190112-1740_ege_l5"] = {"U2M": ()}
-    # models["20190113-1455_ege_l8"] = {"U2M": ("20190114-2346_gazenet_u2m_bw_ege_l8", "gazenet_u2m_bw_ege_l8")}
-    # models["20190114-0959_ege_l15"] = {"U2M": ()}
-    # SELECTED EGE L30
-    # models["20190118-1522_ege_l30"] = {"U2M": ("20190220-0859_gazenet_u2m_bw_ege_l30", "gazenet_u2m_bw_ege_l30")}
-    # models["20190118-1542_ege_l50"] = {"U2M": ()}
-    #
-    # models["20190120-1421_ege_l1_id1"] = {"U2M": ()}
-    # models["20190115-1856_ege_l15_id10"] = {"U2M": ()}
-    # # LM GANs
-    # models["20190120-1423_lm_l1"] = {"U2M": ()}
-    # models["20190116-2156_lm_l5"] = {"U2M": ()}
-    # models["20190117-1430_lm_l8"] = {"U2M": ()}
-    # models["20190116-2305_lm_l15"] = {"U2M": ()}
-    # #
-    # # TODO models["20190120-1424_lm_l1_id1"] = {"U2M": ()}
-    # models["20190117-1548_lm_l10_id5"] = {"U2M": ()}
-
-    # models["20190122-2251_rhp_ege_30"] = {"U2M": ()}
-    # models["20190123-0840_rhp_ege_20_id1"] = {"U2M": ()}
-    # models["20190123-1455_rhp_id2"] = {"U2M": ()}
-
-    n_images = 7
-    do_plot_infobox = False
-    do_predict_eyegaze = True
-    do_draw_landmarks = False
-
-    for model_identifier in models.keys():
-        print("Processing model identifier {}...".format(model_identifier))
-        if M2U:
-            path_original = '../data/MPIIFaceGaze/single-eye-right_zhang.h5'
-            path_refined = '../checkpoints/{}/refined_MPII2Unity'.format(model_identifier)
-            path_ege = '../checkpoints_gazenet/20190107-1032_gazenet_u_augmented_bw'
-            dl_original = MPIIDataLoader(path_original)
-            dl_refined = RefinedMPIIDataLoader(path_refined)
-
-            with tf.Session() as sess:
-                m2u_visualisation = M2UVisualisation(
-                    dl_original=dl_original,
-                    dl_refined=dl_refined,
-                    path_ege=path_ege,
-                    path_elg=path_elg,
-                    name_out='mpii_vs_refined_{}.png'.format(model_identifier),
-                    n_images=n_images,
-                    image_size=(36,60),
-                    norm="batch",
-                    normalise_gaze=False,
-                    gazenet_name="gazenet_u_augmented_bw",
-                    sess=sess,
-                    do_predict_gaze=do_predict_eyegaze,
-                    do_draw_landmarks=do_draw_landmarks,
-                    do_plot_infobox=do_plot_infobox
-                )
-                identifiers = m2u_visualisation.sample_identifiers(path_original)
-                m2u_visualisation.visualise(identifiers)
-
-        if U2M:
-            path_original = '../data/UnityEyes'
-            path_refined = '../checkpoints/{}/refined_Unity2MPII'.format(model_identifier)
-            if models[model_identifier]["U2M"]:
-                ege_folder = models[model_identifier]["U2M"][0]
-                gazenet_name = models[model_identifier]["U2M"][1]
-                path_ege = os.path.join('../checkpoints_gazenet/', ege_folder)
-            else:
-                path_ege = None
-                gazenet_name = None
-            dl_original = UnityDataLoader(path_original)
-            dl_refined = RefinedUnityDataLoader(path_refined)
-
-            with tf.Session() as sess:
-                u2m_visualisation = U2MVisualisation(
-                    dl_original=dl_original,
-                    dl_refined=dl_refined,
-                    path_ege=path_ege,
-                    path_elg=path_elg,
-                    name_out='unity_vs_refined_{}.png'.format(model_identifier),
-                    n_images=n_images,
-                    image_size=(36, 60),
-                    norm="batch",
-                    normalise_gaze=False,
-                    gazenet_name=gazenet_name,
-                    sess=sess,
-                    do_predict_gaze=do_predict_eyegaze,
-                    do_draw_landmarks=do_draw_landmarks,
-                    do_plot_infobox=do_plot_infobox)
-                identifiers = u2m_visualisation.sample_identifiers(
-                    path_original, path_refined)
-                u2m_visualisation.visualise(identifiers)
-
