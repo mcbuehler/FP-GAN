@@ -109,6 +109,6 @@ test_experiments
 
 checkpoints_*
 *.jpg
-visualisations
+visualisations/*.png
 
 outputs_elg
