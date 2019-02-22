@@ -230,7 +230,7 @@ class Visualisation:
     def save_fig(self, plt):
         path_out = os.path.join('../visualisations/', self.name_out)
         print("Saving figure to {}...".format(path_out))
-        plt.savefig(path_out)
+        plt.savefig(path_out, transparent=True)
 
 
 class M2UVisualisation(Visualisation):
@@ -361,7 +361,7 @@ class M2UVisualisation(Visualisation):
         if show:
             plt.show()
         if save:
-            self.save_fig(plt)
+            self.save_fig(plt, transparent=True)
         plt.close(fig)
 
 
