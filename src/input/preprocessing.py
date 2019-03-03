@@ -1,12 +1,17 @@
-import numpy as np
 import cv2 as cv
-from util.log import get_logger
+import numpy as np
+
 from util import gaze as gaze_func
+from util.log import get_logger
 
 logger = get_logger()
 
 
 class Preprocessor:
+    """
+    Base class for preprocessors
+    """
+
     def __init__(self,
                  do_augmentation,
                  eye_image_shape=(72, 120)):
@@ -49,7 +54,7 @@ class Preprocessor:
         h_pitch = -h_pitch
         h_yaw = -h_yaw
         return np.asarray([np.radians(h_pitch), np.radians(h_yaw)],
-                                   dtype=np.float32)
+                          dtype=np.float32)
 
     @staticmethod
     def look_vec_to_gaze_vec(json_data):
@@ -84,7 +89,6 @@ class Preprocessor:
         return eye
 
     def _rgb_noise(self, eye):
-
         # Add rgb noise to eye image
         intensity_noise = int(self._value_from_type('intensity'))
         if intensity_noise > 0:
@@ -126,8 +130,9 @@ class Preprocessor:
         # Get normal distributed random value
         if len(random_multipliers) == 0:
             random_multipliers.extend(
-            list(np.random.normal(size=(len(self._augmentation_ranges),))))
-        return random_multipliers.pop() * self._value_from_type(augmentation_type)
+                list(np.random.normal(size=(len(self._augmentation_ranges),))))
+        return random_multipliers.pop() * self._value_from_type(
+            augmentation_type)
 
 
 class UnityPreprocessor(Preprocessor):
@@ -146,7 +151,8 @@ class UnityPreprocessor(Preprocessor):
         gaze, original_gaze = self.look_vec_to_gaze_vec(json_data)
         result_dict['gaze'] = gaze
 
-        ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
+        # image might have 2 or 3 channels
+        ih, iw = int(full_image.shape[0]), int(full_image.shape[1])
         iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
         oh, ow = self._eye_image_shape
 
@@ -219,7 +225,8 @@ class UnityPreprocessor(Preprocessor):
 
         # Select and transform landmark coordinates
         iris_centre = np.asarray([
-            iw_2 + original_eyeball_radius * -np.cos(original_gaze[0]) * np.sin(
+            iw_2 + original_eyeball_radius * -np.cos(
+                original_gaze[0]) * np.sin(
                 original_gaze[1]),
             ih_2 + original_eyeball_radius * -np.sin(original_gaze[0]),
         ])
@@ -241,7 +248,8 @@ class UnityPreprocessor(Preprocessor):
 class MPIIPreprocessor(Preprocessor):
     def __init__(self,
                  eye_image_shape=(36, 60)):
-        super().__init__(do_augmentation=False, eye_image_shape=eye_image_shape)
+        super().__init__(do_augmentation=False,
+                         eye_image_shape=eye_image_shape)
 
     def preprocess(self, image):
         if len(image.shape) == 2:
@@ -274,19 +282,12 @@ class RefinedPreprocessor(Preprocessor):
             oh, ow = self._eye_image_shape
             full_image = cv.resize(full_image, (ow, oh))
 
-        # ih, iw = int(full_image.shape[0]), int(full_image.shape[1])  # image might have 2 or 3 channels
-        # iw_2, ih_2 = 0.5 * int(iw), 0.5 * int(ih)
-        # oh, ow = self._eye_image_shape
-
-        # def process_coords(coords_list):
-        #     coords = [eval(l) for l in coords_list]
-        #     return np.array([(x, ih - y, z) for (x, y, z) in coords])
-
         if json_data:
             result_dict['head'] = json_data['head']
             # Convert look vector to gaze direction in polar angles
             # gaze, original_gaze = self._look_vec_to_gaze_vec(json_data)
-            result_dict['gaze'] = np.array(json_data['gaze']).astype(np.float32)
+            result_dict['gaze'] = np.array(json_data['gaze']).astype(
+                np.float32)
 
         eye = full_image
 

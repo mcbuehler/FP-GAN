@@ -1,9 +1,10 @@
 import logging
 import multiprocessing
-import tensorflow as tf
-import cv2 as cv
 import ujson
+
+import cv2 as cv
 import numpy as np
+import tensorflow as tf
 
 
 class BaseDataset:
@@ -18,7 +19,8 @@ class BaseDataset:
     def __init__(self, path_input, image_size=(72, 120), batch_size=32,
                  rgb=True, shuffle=True, buffer_size=1000, testing=False,
                  repeat=True, num_parallel_calls=None, drop_remainder=False,
-                 filter_gaze=False, normalise_gaze=False, do_augmentation=False):
+                 filter_gaze=False, normalise_gaze=False,
+                 do_augmentation=False):
         self.path_input = path_input
         self.image_size = image_size
         self.batch_size = batch_size
@@ -27,13 +29,16 @@ class BaseDataset:
         self.buffer_size = buffer_size
         self.testing = testing
         self.repeat = repeat
-        self.num_parallel_calls = num_parallel_calls if num_parallel_calls is not None else multiprocessing.cpu_count() - 1
+        self.num_parallel_calls = num_parallel_calls \
+            if num_parallel_calls \
+               is not None else multiprocessing.cpu_count() - 1
         self.drop_remainder = drop_remainder
         self.filter_gaze = filter_gaze
         self.normalise_gaze = normalise_gaze
         self.do_augmentation = do_augmentation
 
         if self.filter_gaze:
+            # gaze should be in radians
             self.gaze_filter_range = {
                 'pitch': (-0.7, 0.2),
                 'yaw': (-0.7, 0.7)
