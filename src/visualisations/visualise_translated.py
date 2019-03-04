@@ -163,11 +163,13 @@ class Visualisation:
         for c in coordinates:
             # type 2: stars
             # size: in pixels
+            c = np.asarray(c, dtype=np.int)
             img = cv2.drawMarker(img, tuple(c), color=color, markerType=2,
                                  markerSize=1)
         return img
 
-    def gray2rgb(self, image):
+    @staticmethod
+    def gray2rgb(image):
         """
         Expands the dimensions of a gray-scale image such that it has three
             dimensions.
@@ -233,7 +235,7 @@ class Visualisation:
         plt.savefig(path_out, transparent=True)
 
 
-class M2UVisualisation(Visualisation):
+class R2SVisualisation(Visualisation):
     """
     Visualisation class for real images and their translations.
     """
@@ -365,7 +367,7 @@ class M2UVisualisation(Visualisation):
         plt.close(fig)
 
 
-class U2MVisualisation(Visualisation):
+class S2RVisualisation(Visualisation):
     """
     Visualisation class for synthetic images and their translations.
     """

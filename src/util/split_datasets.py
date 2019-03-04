@@ -261,7 +261,7 @@ class MPIIDatasetSplitFactory(DatasetSplitFactory):
         return n_train, n_test
 
 
-def run_refined_m2u(model_identifier):
+def run_refined_r2s(model_identifier):
     gan_checkpoint_path = os.path.join(BASE_DIR, os.path.join("checkpoints", model_identifier))
     test_ids = ["p{}".format(i) for i in map(lambda s: str(s).zfill(2), range(12, 15))]
     factory = RefinedMPIIDatasetSplitFactory(
@@ -275,7 +275,7 @@ def run_refined_m2u(model_identifier):
     factory.run()
 
 
-def run_refined_u2m(model_identifier):
+def run_refined_s2r(model_identifier):
     gan_checkpoint_path = os.path.join(BASE_DIR, os.path.join("checkpoints", model_identifier))
     factory = StandardDatasetSplitFactory(
         path_source=os.path.join(gan_checkpoint_path, "refined_Unity2MPII"),
@@ -320,6 +320,7 @@ if __name__ == "__main__":
     # run_mpii()
 
     checkpoint_folder = "20190118-1522_ege_l30"
-    # run_refined_u2m(checkpoint_folder)
-    run_refined_m2u(checkpoint_folder)
+    checkpoint_folder = "20190116-2305_lm_l15"
+    run_refined_s2r(checkpoint_folder)
+    run_refined_r2s(checkpoint_folder)
 

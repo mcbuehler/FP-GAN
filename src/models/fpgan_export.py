@@ -1,9 +1,3 @@
-""" Freeze variables and convert 2 generator networks to 2 GraphDef files.
-This makes file size smaller and can be used for inference in production.
-An example of command-line usage is:
-
-python run/export_fp_gan.py --config ../config/fpgan_basic.ini --section 20181207-1957
-"""
 import tensorflow as tf
 
 from models.model import CycleGAN
@@ -11,6 +5,9 @@ from util.config_loader import Config
 
 
 class GeneratorExport:
+    """ Freeze variables and convert 2 generator networks to 2 GraphDef files.
+    This makes file size smaller and can be used for inference in production.
+    """
     def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf, rgb):
         """
         Args:
@@ -28,12 +25,12 @@ class GeneratorExport:
         self.batch_size = batch_size
         self.rgb = rgb
 
-    def run(self, model_name, U2M=True):
+    def run(self, model_name, S2R=True):
         """
-        Run export for given model. The direction is given by U2M
+        Run export for given model. The direction is given by S2R
         Args:
             model_name: name to use when writing graph
-            U2M: Unity2MPII (corresponds to synthetic-to-real)
+            S2R: Unity2MPII (corresponds to synthetic-to-real)
 
         Returns:
         """
@@ -50,7 +47,7 @@ class GeneratorExport:
             input_image = tf.placeholder(tf.float32, shape=input_dimensions,
                                          name='input_image')
             cycle_gan.model(fake_input=True)
-            if U2M:
+            if S2R:
                 output_image = cycle_gan.G.sample(input_image)
             else:
                 output_image = cycle_gan.F.sample(input_image)
@@ -85,7 +82,7 @@ def main(unused_argv):
     cfg = Config(FLAGS.config, cfg_section)
 
     print("Exporting model from {}...".format(cfg.get("checkpoint_folder")))
-    print('Exporting U2M model...')
+    print('Exporting S2R model...')
     default_args = dict(
         checkpoint_dir=cfg.get("checkpoint_folder"),
         image_size=[cfg.get('image_height'),
@@ -98,13 +95,13 @@ def main(unused_argv):
     generator_export = GeneratorExport(**default_args)
 
     generator_export.run(
-        model_name=cfg.get("model_name_u2m"),
-        U2M=True)
+        model_name=cfg.get("model_name_s2r"),
+        S2R=True)
 
-    print('Exporting M2U model...')
+    print('Exporting R2S model...')
     generator_export.run(
-        model_name=cfg.get("model_name_m2u"),
-        U2M=False)
+        model_name=cfg.get("model_name_r2s"),
+        S2R=False)
 
 
 if __name__ == '__main__':

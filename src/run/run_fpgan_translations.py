@@ -3,7 +3,7 @@ An example of command-line usage is:
 CUDA_VISIBLE_DEVICES=0 python run/run_fpgan_translations.py
     --config ../config/fpgan_basic.ini
     --section 20181123-1412
-    --direction M2U
+    --direction R2S
 
 """
 import logging
@@ -17,11 +17,12 @@ from util.enum_classes import TranslationDirection as Direction, \
     DatasetClass as DS
 
 
-def run_export(cfg, U2M=True):
+def run_export(cfg, S2R=True):
     """
-    Exports the model in given direction (default U2M).
+    Exports the model in given direction (default S2R).
     :param cfg: config
-    :param U2M: Export from Unity to MPII or the other way round
+    :param S2R: Export from Unity (synthetic) to MPII (real)
+        or the other way round
     :return:
     """
     logging.info("Exporting model from {}...".
@@ -38,24 +39,24 @@ def run_export(cfg, U2M=True):
 
     generator_export = GeneratorExport(**default_args)
 
-    if U2M:
-        logging.info('Exporting U2M model...')
+    if S2R:
+        logging.info('Exporting S2R model...')
         generator_export.run(
-            model_name=cfg.get("model_name_u2m"),
-            U2M=True)
+            model_name=cfg.get("model_name_s2r"),
+            S2R=True)
     else:
-        logging.info('Exporting M2U model...')
+        logging.info('Exporting R2S model...')
         generator_export.run(
-            model_name=cfg.get("model_name_m2u"),
-            U2M=False)
+            model_name=cfg.get("model_name_r2s"),
+            S2R=False)
 
 
-def run_inference(cfg, U2M=True):
+def run_inference(cfg, S2R=True):
     """
     Translates images
     pre: there exists exported model using the same batch size
     :param cfg: config
-    :param U2M: Unity to MPII
+    :param S2R: Unity to MPII
     :return:
     """
     # Variables used for both directions
@@ -68,17 +69,17 @@ def run_inference(cfg, U2M=True):
         batch_size=batch_size, image_size=image_size, rgb=rgb
     )
     # Variables dependent on direction
-    if U2M:
+    if S2R:
         path_in = cfg.get("S")
-        model_path = cfg.get("path_model_u2m")
-        output_folder = cfg.get('path_refined_u2m')
+        model_path = cfg.get("path_model_s2r")
+        output_folder = cfg.get('path_refined_r2s')
         inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
                                        dataset_class=DS.UNITY, **shared_args)
         inference.run()
     else:
         path_in = cfg.get("R")
-        model_path = cfg.get("path_model_m2u")
-        output_folder = cfg.get('path_refined_m2u')
+        model_path = cfg.get("path_model_r2s")
+        output_folder = cfg.get('path_refined_s2r')
         inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
                                        dataset_class=DS.MPII, **shared_args)
         inference.run()
@@ -88,23 +89,21 @@ def main():
     FLAGS = tf.flags.FLAGS
     tf.flags.DEFINE_string('config', None, 'input configuration')
     tf.flags.DEFINE_string('section', 'DEFAULT', 'input configuration')
-    tf.flags.DEFINE_string('direction', 'U2M', 'input configuration')
+    tf.flags.DEFINE_string('direction', 'S2R', 'input configuration')
 
     # Load the config variables
     cfg = Config(FLAGS.config, FLAGS.section)
 
-    if FLAGS.direction in [Direction.U2M, Direction.BOTH]:
-        run_export(cfg, U2M=True)
-        run_inference(cfg, U2M=True)
-    if FLAGS.direction in [Direction.M2U, Direction.BOTH]:
-        run_export(cfg, U2M=False)
-        run_inference(cfg, U2M=False)
+    if FLAGS.direction in [Direction.S2R, Direction.BOTH]:
+        run_export(cfg, S2R=True)
+        run_inference(cfg, S2R=True)
+    if FLAGS.direction in [Direction.R2S, Direction.BOTH]:
+        run_export(cfg, S2R=False)
+        run_inference(cfg, S2R=False)
     if FLAGS.direction not in Direction.get_all():
         print("Invalid direction: {}".format(FLAGS.direction))
         print("Direction must be one of: {}".format(", ".join(Direction().get_all())))
         exit()
-
-
 
 
 if __name__ == '__main__':

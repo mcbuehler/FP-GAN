@@ -3,7 +3,7 @@ An example of command-line usage is:
 CUDA_VISIBLE_DEVICES=0 python run/fpgan_inference.py
     --config ../config/fpgan_basic.ini
     --section 20181123-1412
-    --U2M True
+    --S2R True
 
 """
 import json
