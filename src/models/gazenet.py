@@ -5,8 +5,6 @@ from models.base_gazenet import BaseGazeNet
 from util.enum_classes import Mode
 from util.model_utils import restore_model
 
-
-
 """
 Original architecture:
 Input (35x55)
@@ -20,14 +18,19 @@ Input (35x55)
 -> FC9600
 -> FC1000
 -> FC3
-# -> l2 normalisation
+-> l2 normalisation  // ommitted in our case
 -> l2 loss
+
+Hyper-parameters:
 LR = =.001
 batch_size=512
 """
 
 
 class GazeNet(BaseGazeNet):
+    is_training_tensor = None
+    variables = None
+
     def forward(self, input, mode, is_training=True):
         """
         Args:
@@ -73,8 +76,8 @@ class GazeNet(BaseGazeNet):
             out = ops.last_dense(
                 fc1000, name="out", reuse=self.reuse
             )
-        # What about a layer that adds a restriction on output?
-        # self.reuse = True
+
+        # This is used to easily access the trainable variables for this model
         self.variables = tf.get_collection(
             tf.GraphKeys.TRAINABLE_VARIABLES, scope=self.name)
 
@@ -82,6 +85,9 @@ class GazeNet(BaseGazeNet):
 
 
 class GazeNetInference:
+    """
+    Run inference on a GazeNet
+    """
     def __init__(self, sess, checkpoint_path, batch_size, image_size, norm, normalise_gaze, name):
         self.sess = sess
         self.checkpoint_path = checkpoint_path
@@ -98,6 +104,11 @@ class GazeNetInference:
         self.in_tensor, self.out_tensor = self.build_model()
 
     def build_model(self):
+        """
+        Create sample tensors for a GazeNet
+        Returns:
+
+        """
         in_tensor = tf.placeholder(tf.float32,
                                    (self.gazenet.batch_size,
                                     *self.gazenet.image_size, 1)
@@ -107,6 +118,15 @@ class GazeNetInference:
         return in_tensor, out_tensor
 
     def predict_gaze(self, images_preprocessed):
+        """
+        Run the predictions. This loads the model from the checkpoint and then
+        runs a feed-forward for the preprocessed images.
+        Args:
+            images_preprocessed: np.array of preprocessed images
+
+        Returns: gaze predictions for input images
+
+        """
         restore_model(self.checkpoint_path, self.sess, self.gazenet.name)
         gaze_pred = self.sess.run(self.out_tensor,
                              feed_dict={self.in_tensor: images_preprocessed})

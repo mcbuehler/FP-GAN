@@ -5,27 +5,6 @@ from tensorflow import GraphKeys
 import util.gaze as gaze
 from util.enum_classes import Mode
 
-"""
-Original architecture:
-Input (35x55)
--> Conv3x3 (f=32)
--> Conv3x3 (f=32)
--> Conv3x3 (f=64)
--> MaxPool3x3 (stride=2)
--> Conv3x3 (f=80)
--> Conv3x3 (f=192)
--> Maxpool2x2 (stride=2)
--> FC9600
--> FC1000
--> FC3
--> l2 normalisation  // ommitted in our case
--> l2 loss
-
-Hyper-parameters:
-LR = =.001
-batch_size=512
-"""
-
 
 class BaseGazeNet:
     """

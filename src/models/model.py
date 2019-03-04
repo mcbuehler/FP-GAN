@@ -13,6 +13,12 @@ REAL_LABEL = 0.9
 
 
 class CycleGAN:
+    """
+    Full FP-GAN model. The FP-GAN model consists of two Generators and
+    two Discriminators. It translates images from the synthetic domain
+    to the real domain and vice-versa. Please refer to the report for more
+    details.
+    """
     def __init__(self,
                  S_train_file='',
                  R_train_file='',
@@ -37,20 +43,23 @@ class CycleGAN:
           R_train_file: string MPIIGaze h5 File
           batch_size: integer, batch size
           image_size: list(height, width)
-          lambda1: integer, weight for forward cycle loss (X->Y->X)
-          lambda2: integer, weight for backward cycle loss (Y->X->Y)
           lambdas_features: dict lambdas for feature loss. keys:
             "identity", "gaze", "landmarks"
           use_lsgan: boolean
           norm: 'instance' or 'batch'
+          rgb: color or gray-scale images
+          lambda1: integer, weight for forward cycle loss (X->Y->X)
+          lambda2: integer, weight for backward cycle loss (Y->X->Y)
+          lambdas_features: dict with lambdas for feature losses
           learning_rate: float, initial learning rate for Adam
           beta1: float, momentum term of Adam
           ngf: number of gen filters in first conv layer
           tf_session: tensorflow session. Needed for loading data sources.
+          filter_gaze: whether to restrict eye gaze range
+          ege_config: config of eye gaze estimator
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
-        # assert 'identity' in self.lambdas_features.keys()
         self.lambdas_features = lambdas_features
         self.use_lsgan = use_lsgan
         use_sigmoid = not use_lsgan
@@ -70,21 +79,27 @@ class CycleGAN:
         self.is_training = tf.placeholder_with_default(True, shape=[],
                                                        name='gan_is_training')
 
+        # Networks responsible for forward pass (synthetic to real)
         self.G = Generator('G', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size, rgb=rgb)
         self.D_R = Discriminator('D_R',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
+        # Networks responsible for backward pass (real to synthetic)
         self.F = Generator('F', self.is_training, ngf=ngf, norm=norm,
                            image_size=image_size, rgb=rgb)
         self.D_S = Discriminator('D_S',
                                  self.is_training, norm=norm,
                                  use_sigmoid=use_sigmoid)
 
+        # Placeholder for the tensors to be produced
         self.fake_s = tf.placeholder(tf.float32,
                                      shape=input_shape)
         self.fake_r = tf.placeholder(tf.float32,
                                      shape=input_shape)
+
+        # Get iterators for the datasets in the synthetic
+        # and in the real domain
         if self.S_train_file != '' and self.R_train_file != '':
             self.S_iterator = DatasetManager.get_dataset_iterator_for_path(
                 self.S_train_file,
@@ -108,6 +123,7 @@ class CycleGAN:
                 dataset_class=DS.MPII,
                 filter_gaze=filter_gaze
             )
+        # Create the eye gaze model if we are using the eye gaze loss
         if self.lambdas_features['gaze'] > 0:
             from models.gazenet import GazeNet
             self.gazenet = GazeNet(
@@ -118,11 +134,23 @@ class CycleGAN:
                 beta2=None,
                 **ege_config
             )
+        # Create the landmarks predictor if we are using the landmarks loss
         if self.lambdas_features['landmarks'] > 0:
             from models.elg import ELG
             self.elg = ELG(num_feature_maps=64)
 
     def model(self, fake_input=False):
+        """
+        Builds the model
+        Args:
+            fake_input: Set to True if you are building the model for
+                inference
+
+        Returns: G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s
+
+        """
+        # If we are using the model for inference, we get a fake input.
+        # Then we need to create placeholders
         if fake_input:
             if self.rgb:
                 shape = [self.batch_size, *self.image_size, 3]
@@ -131,33 +159,37 @@ class CycleGAN:
             s = tf.placeholder(tf.float32, shape)
             r = tf.placeholder(tf.float32, shape)
         else:
+            # We are not using fake input, we get the actual images.
             S_input_batch = self.S_iterator.get_next()
             s = S_input_batch['eye']
             R_input_batch = self.R_iterator.get_next()
             r = R_input_batch['eye']
 
-        # why don't we feed G(x) / F(y) here?
+        # Collect all losses
         cycle_loss = self.cycle_consistency_loss(self.G, self.F, s, r)
 
-        # X -> Y
+        # synthetic to real (S2R)
         fake_r = self.G(s)
         G_gan_loss = self.generator_loss(self.D_R, fake_r,
                                          use_lsgan=self.use_lsgan)
+        # All feature losses (eye gaze, landmarks, identity transform)
         G_feature_loss = self.get_feature_loss(s, fake_r, 'G')
         G_loss = G_gan_loss + cycle_loss + G_feature_loss
+
         D_R_loss = self.discriminator_loss(self.D_R, r, self.fake_r,
                                            use_lsgan=self.use_lsgan)
 
-        # Y -> X
+        # real to synthetic (R2S)
         fake_s = self.F(r)
         F_gan_loss = self.generator_loss(self.D_S, fake_s,
                                          use_lsgan=self.use_lsgan)
+        # All feature losses (eye gaze, landmarks, identity transform)
         F_feature_loss = self.get_feature_loss(r, fake_s, 'F')
         F_loss = F_gan_loss + cycle_loss + F_feature_loss
         D_S_loss = self.discriminator_loss(self.D_S, s, self.fake_s,
                                            use_lsgan=self.use_lsgan)
 
-        # summary
+        # summaries
         tf.summary.histogram('D_R/true', self.D_R(r))
         tf.summary.histogram('D_R/fake', self.D_R(self.G(s)))
         tf.summary.histogram('D_S/true', self.D_S(s))
@@ -233,7 +265,8 @@ class CycleGAN:
                            fake_buffer_size=50, batch_size=1
         Args:
           D: discriminator object
-          y: 4D tensor (batch_size, image_size, image_size, 3)
+          y: 4D tensor (batch_size, image_size, image_size, 3 or 1)
+          fake_y: fake y tensor (produced by Generator)
           use_lsgan: use least-squares loss instead of cross-entropy
         Returns:
           loss: scalar
@@ -251,7 +284,14 @@ class CycleGAN:
         return loss
 
     def generator_loss(self, D, fake_y, use_lsgan=True):
-        """  fool discriminator into believing that G(x) is real
+        """
+        Loss for generator
+        Args:
+            D: Discriminator
+            fake_y: fake y produced by Generator
+            use_lsgan: if True substitutes cross-entropy by least squares loss
+
+        Returns: generator loss
         """
         if use_lsgan:
             # use mean squared error
@@ -262,7 +302,15 @@ class CycleGAN:
         return loss
 
     def cycle_consistency_loss(self, G, F, x, y):
-        """ cycle consistency loss (L1 norm)
+        """
+        Loss for cycle consistency
+        Args:
+            G: Generator for synthetic -> real
+            F: Generator for real -> synthetic
+            x: synthetic input
+            y: real input
+
+        Returns: cycle consistency loss term
         """
         forward_loss = tf.reduce_mean(tf.abs(F(G(x)) - x))
         backward_loss = tf.reduce_mean(tf.abs(G(F(y)) - y))
@@ -271,10 +319,18 @@ class CycleGAN:
 
     def get_feature_loss(self, x, fake_y, generator_name):
         """
-        Placeholder only
-        :param x: real input
-        :param fake_y: translated x
-        :return:
+        Applies feature loss given a configuration.
+        - Eye gaze consistency loss
+        - Landmarks preservation loss
+        - Identity-transform loss
+
+        Args:
+            x: original input (not modified by generator)
+            fake_y: translated x (passed through generator)
+            generator_name: name of generator
+
+        Returns: loss term for feature loss
+
         """
         loss = 0
         if self.lambdas_features["identity"] > 0:
@@ -291,10 +347,14 @@ class CycleGAN:
     def _identity_transform_loss(self, x, fake_y, generator_name):
         """
         L1 Identity transform loss. This ensures that fake_y is
-        not too different from x
-        :param x: input to generator
-        :param fake_y: G(x)
-        :return:
+        not too different from x.
+
+        Args:
+            x: input to generator
+            fake_y: G(x) or F(x)
+            generator_name: name of generator
+
+        Returns: loss term for identity loss
         """
         x_grayscale = tf.reduce_mean(x, 3)
         fake_y_grayscale = tf.reduce_mean(fake_y, 3)
@@ -304,11 +364,15 @@ class CycleGAN:
 
     def _gaze_transform_loss(self, x, fake_y, generator_name):
         """
-        L2 transform loss on eye gaze. This ensures that fake_y is
-        not too different from x
-        :param x: input to generator
-        :param fake_y: G(x)
-        :return:
+        L2 transform loss on eye gaze. This ensures that the eye gaze
+        for fake_y is not too different from x.
+
+        Args:
+            x: input to generator
+            fake_y: G(x) or F(x)
+
+        Returns: loss term for gaze consistency
+
         """
         x_gaze = self.gazenet.forward(x, mode=Mode.TEST, is_training=False)
         fake_y_gaze = self.gazenet.forward(fake_y, mode=Mode.TEST, is_training=False)
@@ -317,7 +381,20 @@ class CycleGAN:
         return self.lambdas_features['gaze'] * loss
 
     def _landmarks_transform_loss(self, x, fake_y, generator_name):
-        # for image size 36,60 we yield 60
+        """
+        L2 transform loss on landmarks consistency.
+        This ensures that the landmark locations
+        for fake_y are not too different from x.
+
+        Args:
+            x: input to generator
+            fake_y: G(x) or F(x)
+
+        Returns: loss term for landmarks consistency
+        """
+        # The landmarks detector (self.elg) yields locations in pixels
+        # We normalise these values to the range [0,1] in order to
+        # have a loss on a similar scale as the other feature losses.
         x_output, _, _ = self.elg.build_model(x)
         fake_y_output, _, _ = self.elg.build_model(fake_y)
         # We want both coordinates be in the range [0,1]

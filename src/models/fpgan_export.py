@@ -4,22 +4,39 @@ An example of command-line usage is:
 
 python run/export_fp_gan.py --config ../config/fpgan_basic.ini --section 20181207-1957
 """
-from util.config_loader import Config
 import tensorflow as tf
 
 from models.model import CycleGAN
+from util.config_loader import Config
 
 
 class GeneratorExport:
     def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf, rgb):
+        """
+        Args:
+            checkpoint_dir: Where to load the model from
+            image_size: (height, width)
+            batch_size: will need to be the same for inference
+            norm: instance or batch
+            ngf: number of filters in first layer
+            rgb: RGB images or gray-scale
+        """
         self.checkpoint_dir = checkpoint_dir
         self.norm = norm
         self.ngf = ngf
         self.image_size = image_size
         self.batch_size = batch_size
-        self.rgb=rgb
+        self.rgb = rgb
 
     def run(self, model_name, U2M=True):
+        """
+        Run export for given model. The direction is given by U2M
+        Args:
+            model_name: name to use when writing graph
+            U2M: Unity2MPII (corresponds to synthetic-to-real)
+
+        Returns:
+        """
         graph = tf.Graph()
         if self.rgb:
             input_dimensions = [self.batch_size, *self.image_size, 3]
@@ -72,7 +89,7 @@ def main(unused_argv):
     default_args = dict(
         checkpoint_dir=cfg.get("checkpoint_folder"),
         image_size=[cfg.get('image_height'),
-                  cfg.get('image_width')],
+                    cfg.get('image_width')],
         batch_size=cfg.get("batch_size_inference"),
         norm=cfg.get("norm"),
         ngf=cfg.get("ngf")
