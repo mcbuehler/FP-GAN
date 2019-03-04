@@ -463,9 +463,6 @@ class S2RVisualisation(Visualisation):
                                     self.color_lm_refined)
 
             if self.do_draw_gaze:
-                # img_original_full = self.dg_py(img_original_full,
-                # original_data[file_stem]['gaze'], length=400, thickness=5,
-                # color=self.color_true)
                 img_original = self.dg_py(img_original,
                                           original_data[file_stem]['gaze'],
                                           color=self.color_true)

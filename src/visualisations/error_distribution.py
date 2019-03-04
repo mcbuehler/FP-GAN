@@ -1,3 +1,9 @@
+"""
+Visualisation script for error distribution
+
+Not used in production, so not documented.
+"""
+
 import json
 import numpy as np
 import matplotlib.pyplot as plt

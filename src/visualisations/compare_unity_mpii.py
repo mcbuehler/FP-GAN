@@ -1,3 +1,9 @@
+"""
+Script for finding most similar image in dataset A given image in dataset B.
+
+This script was not used in production and is not documented.
+"""
+
 import matplotlib.pyplot as plt
 from visualisations.data_loading import MPIIDataLoader, RefinedMPIIDataLoader, UnityDataLoader, RefinedUnityDataLoader
 import h5py
