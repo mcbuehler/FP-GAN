@@ -2,6 +2,9 @@ import os
 
 
 class Mode:
+    """
+    string representations for different modes, e.g. train, test,...
+    """
     TRAIN = "train"
     TEST = "test"
     VALIDATION_WITHIN = "val_within"
@@ -13,6 +16,9 @@ class Mode:
 
 
 class EnvironmentVariable:
+    """
+    Environment Variables used in different scenarios
+    """
     PATH_UNITY_TRAIN = "PATH_UNITY_TRAIN"
     PATH_UNITY_VALIDATION = "PATH_UNITY_VALIDATION"
     PATH_UNITY_TEST = "PATH_UNITY_TEST"

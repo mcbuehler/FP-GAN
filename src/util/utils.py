@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-import random
 
 
 def convert2int(image):
@@ -78,9 +77,13 @@ class ImagePool:
 
     def query(self, images):
         """
+        Use this method to query images. The input images are partially
+        added to the pool.
+        Args:
+            images: 4D image tensor where first dimension is batch size
 
-        :param images: 4D image tensor where first dimension is batch size
-        :return:
+        Returns: tensor of n images
+
         """
         batch_size = images.shape[0]
 
@@ -96,11 +99,12 @@ class ImagePool:
         else:
             # Pool is full. We sample half of the entries from pool
             # and the other half from the new images
-            batch_size_half = int(batch_size/2)
+            batch_size_half = int(batch_size / 2)
             sampled_pool_images = self.sample_from_pool(batch_size_half)
-            sampled_new_images = self.sample_from_images(images, batch_size - batch_size_half)
+            sampled_new_images = self.sample_from_images(images,
+                                                         batch_size - batch_size_half)
 
             # We randomly replace half of the images in the pool with new images
             self._refresh_pool(images, batch_size_half)
-            return np.concatenate((sampled_new_images, sampled_pool_images), axis=0)
-
+            return np.concatenate((sampled_new_images, sampled_pool_images),
+                                  axis=0)

@@ -1,6 +1,10 @@
+"""
+This file contains helper functions for creating operations like
+convolutions, dense layers, etc.
+"""
+
 import tensorflow as tf
-import util.utils as utils
-from util.enum_classes import Mode
+
 
 def get_index_channels(data_format):
     # not used yet
@@ -140,7 +144,8 @@ def uk(input, k, reuse=False, norm='instance', is_training=True, name=None,
         # We do not need to know the batch size at this point.
         # But output_shape needs to be a tensor and it needs to be
         # determined at runtime. tf.shape(...) loads the dimension at run time.
-        output_shape = tf.stack([tf.shape(input)[0], output_size[0], output_size[1], k], axis=0)
+        output_shape = tf.stack(
+            [tf.shape(input)[0], output_size[0], output_size[1], k], axis=0)
         fsconv = tf.nn.conv2d_transpose(input, weights,
                                         output_shape=output_shape,
                                         strides=[1, 2, 2, 1], padding='SAME')
@@ -209,7 +214,7 @@ def conv3x3(input, k, name, stride=1, reuse=False, is_training=True,
     # Stride? Activation function? normalisation? skip connections?
     with tf.variable_scope(name, reuse=reuse):
         weights = _weights_xavier("weights",
-                           shape=[3, 3, input.get_shape()[3], k])
+                                  shape=[3, 3, input.get_shape()[3], k])
 
         # if mode:
         #     tf.summary.histogram("weights", weights)

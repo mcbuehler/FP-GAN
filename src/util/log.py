@@ -1,13 +1,18 @@
 import json
+import logging
+import sys
 from collections import OrderedDict
 
-import sys
-
 from models.base_gazenet import BaseGazeNet
-import logging
 
 
 def write_parameter_summaries(model: BaseGazeNet, path_out: str):
+    """
+    Write a json summary for the parameters in model.
+    Args:
+        model: a GazeNet model
+        path_out: where to write the summary
+    """
     data = OrderedDict([
         ('name', model.name),
         ('batch_size', model.batch_size),
@@ -23,6 +28,10 @@ def write_parameter_summaries(model: BaseGazeNet, path_out: str):
 
 
 def get_logger():
+    """
+    Creates and returns a logger
+    Returns: Logger
+    """
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)

@@ -1,5 +1,7 @@
+import argparse
 import logging
-import os, argparse, shutil
+import os
+import shutil
 
 import tensorflow as tf
 from tensorflow.python.saved_model import tag_constants
@@ -19,8 +21,8 @@ class ModelManager:
 
     def save_model(self, sess, model):
         input_placeholder = tf.placeholder(tf.float32,
-                                     shape=self.input_dimensions,
-                                     name=self.INPUT_NAME)
+                                           shape=self.input_dimensions,
+                                           name=self.INPUT_NAME)
         output_placeholder = model.sample(input_placeholder)
         output_placeholder = tf.identity(output_placeholder,
                                          name=self.OUTPUT_NAME)
@@ -49,6 +51,8 @@ class ModelManager:
 
         logging.info("Model loaded from folder: {}".format(self.save_folder))
         return in_tensor, out_tensor
+
+
 """
 graph = tf.Graph()
 with graph.as_default():
@@ -70,9 +74,6 @@ with graph.as_default():
         })
         print(r)
 """
-
-
-
 
 # The original freeze_graph function
 # from tensorflow.python.tools.freeze_graph import freeze_graph

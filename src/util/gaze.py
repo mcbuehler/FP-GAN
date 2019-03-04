@@ -64,6 +64,7 @@ def angular_error(a, b):
 
 def tensorflow_angular_error_from_pitchyaw(y_true, y_pred):
     """Tensorflow method to calculate angular loss from head angles."""
+
     def angles_to_unit_vectors(y):
         sin = tf.sin(y)
         cos = tf.cos(y)
@@ -96,7 +97,8 @@ def tensorflow_angular_error_from_vector(v_true, v_pred):
         return tf.reduce_mean(ang)
 
 
-def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0, 255)):
+def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2,
+              color=(0, 0, 255)):
     """Draw gaze angle on given image with a given eye positions."""
     image_out = np.ascontiguousarray(image_in, dtype=np.int32)
     dx = -length * np.sin(pitchyaw[1])
@@ -106,12 +108,14 @@ def draw_gaze(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0
     # The eye position needs to be enlarged, too
     eye_pos = tuple(np.multiply(np.array(eye_pos), 2))
     cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
-                   tuple(np.round([eye_pos[0] + dx, eye_pos[1] + dy]).astype(int)), color,
+                   tuple(np.round([eye_pos[0] + dx, eye_pos[1] + dy]).astype(
+                       int)), color,
                    thickness, cv.LINE_AA, tipLength=0.2)
     return image_out
 
 
-def draw_gaze_py(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0, 0, 255)):
+def draw_gaze_py(image_in, eye_pos, pitchyaw, length=40.0, thickness=2,
+                 color=(0, 0, 255)):
     """Draw gaze angle on given image with a given eye positions."""
     image_out = np.ascontiguousarray(image_in, dtype=np.int32)
     pitch, yaw = - np.array(pitchyaw) * image_in.shape[:2] * 2
@@ -122,21 +126,30 @@ def draw_gaze_py(image_in, eye_pos, pitchyaw, length=40.0, thickness=2, color=(0
     # The eye position needs to be enlarged, too
     eye_pos = tuple(np.multiply(np.array(eye_pos), 2))
     cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
-                   tuple(np.round([eye_pos[0], eye_pos[1] + pitch]).astype(int)), color,
+                   tuple(
+                       np.round([eye_pos[0], eye_pos[1] + pitch]).astype(int)),
+                   color,
                    thickness, cv.LINE_AA, tipLength=0.2)
     cv.arrowedLine(image_out, tuple(np.round(eye_pos).astype(np.int32)),
-                   tuple(np.round([eye_pos[0] + yaw, eye_pos[1]]).astype(int)), color,
+                   tuple(np.round([eye_pos[0] + yaw, eye_pos[1]]).astype(int)),
+                   color,
                    thickness, cv.LINE_AA, tipLength=0.2)
     return image_out
 
 
 def mse(a, b):
+    """
+    Mean squared error for two vectors
+    """
     return np.mean(np.sqrt(
         np.square(a - b)
     ), axis=1)
 
 
 def euclidean_error(a, b):
+    """
+    Euclidean error for two vectors
+    """
     a = pitchyaw_to_vector(a) if a.shape[1] == 2 else a
     b = pitchyaw_to_vector(b) if b.shape[1] == 2 else b
 
