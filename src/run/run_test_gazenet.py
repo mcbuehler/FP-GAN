@@ -1,3 +1,10 @@
+"""
+Run this script in order to evaluate the Gazenet performance on given
+configuration.
+
+python run/run_test_gazenet.py --config ../config/... --section ...
+"""
+
 import logging
 from util.evaluation import Test
 from util.config_loader import Config
@@ -62,11 +69,7 @@ def test():
 
         saver = tf.train.Saver()
         logging.info("Restoring from checkpoint directory: {}".format(checkpoints_dir))
-        # checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
-        # meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
-        # restore = tf.train.import_meta_graph(meta_graph_path)
         saver.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
-        # step = int(meta_graph_path.split("-")[2].split(".")[0])
         step = 0
 
         test_step.run(sess, step, write_folder=checkpoints_dir)

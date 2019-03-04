@@ -1,3 +1,11 @@
+"""
+Training script for FP-GAN
+Make sure to include a valid configuration.
+
+Example running command:
+CUDA_VISIBLE_DEVICES=6 python run/train_fpgan.py --config ../config/fpgan_ege.ini --section EGE_RHP
+"""
+
 import logging
 import os
 
@@ -42,8 +50,9 @@ def train():
     checkpoints_dir = cfg.get('checkpoint_folder')
     n_steps = cfg.get('n_steps')
     filter_gaze = cfg.get('filter_gaze')
-    # path_saved_model_gaze = cfg.get('path_saved_model_gaze')
 
+    # If we do not want to train a new model, but rather continue
+    # training one, we have a non-empty checkpoints_dir
     load_model = checkpoints_dir is not None and checkpoints_dir != ""
 
     lambdas_features = {
@@ -58,9 +67,12 @@ def train():
         'name': cfg.get('ege_name')
     }
 
+    # Print an info every n_info_steps
     n_info_steps = 100
 
     if not load_model:
+        # This will be included in the model checkpoint directory for
+        # better traceability of experiments
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
         checkpoints_dir = "../checkpoints/{}_{}".format(current_time, gan_name)
     try:
@@ -69,10 +81,9 @@ def train():
         pass
 
     graph = tf.Graph()
-
     with tf.Session(graph=graph) as sess:
-
         with graph.as_default():
+            # Build the model
             cycle_gan = CycleGAN(
                 S_train_file=S,
                 R_train_file=R,
@@ -92,6 +103,7 @@ def train():
                 ege_config=ege_config
             )
 
+        # Get all losses and build optimizer
         G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s = cycle_gan.model()
         optimizers = cycle_gan.optimize(G_loss, D_R_loss, F_loss, D_S_loss,
                                         n_steps=n_steps)
@@ -104,6 +116,8 @@ def train():
 
         saver = tf.train.Saver()
 
+        # If we apply customised feature losses, we need to build and restore
+        # the feature estimation networks, too.
         if lambdas_features['gaze'] > 0:
             # load eye gaze feature model
             ege_model_path = cfg.get('ege_path')
@@ -112,7 +126,7 @@ def train():
         if lambdas_features['landmarks'] > 0:
             lm_model_path = cfg.get('lm_path')
             # lm_model_name = cfg.get('lm_name')
-            # load eye gaze feature model
+            # load landmarks feature model
             restore_model(lm_model_path, sess=sess, is_model_path=True, variables_scope='hourglass')
 
         summary_op = tf.summary.merge_all()
@@ -122,6 +136,8 @@ def train():
         # Collect errors
         errors = list()
 
+        # We update the discriminator using a history of images.
+        # This has been shown to stabilise training.
         fake_R_pool = ImagePool(pool_size)
         fake_S_pool = ImagePool(pool_size)
 

@@ -1,14 +1,22 @@
+"""
+Script for training GazeNets.
+
+Example starting command:
+CUDA_VISIBLE_DEVICES=6 python run/train_gazenet.py --config ../config/gazenet_bw.ini --section 20190120-1409_gazenet_u_augmented_bw_fg
+"""
+
 import logging
 import os
 import shutil
-from util.evaluation import get_validations
-from input.dataset_manager import DatasetManager
-from util.config_loader import Config
-import tensorflow as tf
 from datetime import datetime
 
+import tensorflow as tf
+
+from input.dataset_manager import DatasetManager
 from models.gazenet import GazeNet
+from util.config_loader import Config
 from util.enum_classes import Mode
+from util.evaluation import get_validations
 
 FLAGS = tf.flags.FLAGS
 
@@ -49,7 +57,8 @@ def train():
     if not load_model:
         # We are not loading a saved model
         current_time = datetime.now().strftime("%Y%m%d-%H%M")
-        checkpoints_dir = "../"+checkpoint_dir_name+"/{}_{}".format(current_time, model_name)
+        checkpoints_dir = "../" + checkpoint_dir_name + "/{}_{}".format(
+            current_time, model_name)
     try:
         os.makedirs(checkpoints_dir)
     except os.error:
@@ -65,6 +74,7 @@ def train():
 
     with tf.Session(graph=graph, config=config) as sess:
         with graph.as_default():
+            # Build the model
             gazenet = GazeNet(
                 batch_size=batch_size,
                 image_size=image_size,
@@ -79,16 +89,19 @@ def train():
             # Prepare training
             if cfg.get('use_regulariser'):
                 logging.info("Using a l2 regulariser")
-                regulariser = tf.contrib.layers.l2_regularizer(scale=cfg.get('regularisation_lambda'))
+                regulariser = tf.contrib.layers.l2_regularizer(
+                    scale=cfg.get('regularisation_lambda'))
             else:
                 regulariser = None
 
+            # Get an iterator for the dataset
             train_iterator = DatasetManager.get_dataset_iterator_for_path(
                 path_train, image_size, batch_size,
                 shuffle=True, repeat=True, do_augmentation=do_augmentation,
                 dataset_class=dataset_class_train, rgb=rgb,
                 normalise_gaze=normalise_gaze, filter_gaze=filter_gaze
             )
+            # Get the losses
             _, loss_train = gazenet.get_loss(
                 train_iterator, is_training=True,
                 mode=Mode.TRAIN, regulariser=regulariser)
@@ -105,20 +118,31 @@ def train():
         # We do this after tf.summary_merge_all because we don't want to create
         # summaries for every step
         all_validations = get_validations(
-            gazenet, path_validation_within, dataset_class_train, path_validation_unity, dataset_class_validation_unity, path_validation_mpii, dataset_class_validation_mpii, image_size, batch_size, rgb=rgb, normalise_gaze=normalise_gaze, filter_gaze=filter_gaze
+            gazenet, path_validation_within, dataset_class_train,
+            path_validation_unity, dataset_class_validation_unity,
+            path_validation_mpii, dataset_class_validation_mpii, image_size,
+            batch_size, rgb=rgb, normalise_gaze=normalise_gaze,
+            filter_gaze=filter_gaze
         )
 
-        if load_model:# and False:
-            logging.info("Restoring from checkpoint directory: {}".format(checkpoints_dir))
+        # We might want to continue training a model instead of training
+        # a new one.
+        if load_model:
+            logging.info("Restoring from checkpoint directory: {}".format(
+                checkpoints_dir))
             checkpoint = tf.train.get_checkpoint_state(checkpoints_dir)
             meta_graph_path = checkpoint.model_checkpoint_path + ".meta"
             restore = tf.train.import_meta_graph(meta_graph_path)
             restore.restore(sess, tf.train.latest_checkpoint(checkpoints_dir))
             step = int(meta_graph_path.split("-")[-1].split(".")[0])
         else:
-            logging.info("Training new model. Checkpoint directory: {}".format(checkpoints_dir))
+            logging.info("Training new model. Checkpoint directory: {}".format(
+                checkpoints_dir))
             # We copy config file
-            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir, "{}__{}.ini".format(model_name, FLAGS.section)))
+            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir,
+                                                       "{}__{}.ini".format(
+                                                           model_name,
+                                                           FLAGS.section)))
             sess.run(tf.global_variables_initializer())
             step = 0
 
@@ -145,15 +169,10 @@ def train():
 
                     # if step > 0 and step % 5000 == 0:
                 if 0 <= step < n_steps and step % 5000 == 0:
-                    # model_manager.save_model(sess, gazenet)
-                    save_path = saver.save(sess,
-                                           checkpoints_dir + "/model.ckpt",
-                                           global_step=step)
+                    saver.save(sess, checkpoints_dir + "/model.ckpt",
+                               global_step=step)
                     for validation in all_validations:
-                        validation.run(sess,
-                                                           step,
-                                                           train_writer,
-                                                           n_batches=15)
+                        validation.run(sess, step, train_writer, n_batches=15)
                 step += 1
         except KeyboardInterrupt:
             logging.info('Interrupted')
@@ -173,7 +192,6 @@ def train():
                 )
             # When done, ask the threads to stop.
             coord.request_stop()
-            # coord.join(threads)
 
 
 def main(unused_argv):
