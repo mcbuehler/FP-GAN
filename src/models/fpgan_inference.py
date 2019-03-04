@@ -8,16 +8,13 @@ CUDA_VISIBLE_DEVICES=0 python run/fpgan_inference.py
 """
 import json
 import logging
-
 import os
-from collections import Iterable
 
 import tensorflow as tf
 
 from input.dataset_manager import DatasetManager
-from util.utils import convert2int
-from util.config_loader import Config
 from util.files import create_folder_if_not_exists
+from util.utils import convert2int
 
 
 class GeneratorInference:
@@ -25,7 +22,9 @@ class GeneratorInference:
     Translate images from one domain to the other. Requires the model
     to be exported (model.pb)
     """
-    def __init__(self, path_in, model_path, output_folder, batch_size, rgb, image_size, dataset_class):
+
+    def __init__(self, path_in, model_path, output_folder, batch_size, rgb,
+                 image_size, dataset_class):
         """
 
         Args:
@@ -49,7 +48,8 @@ class GeneratorInference:
     def config_info(self):
         logging.info("Reading images from '{}'".format(self.path_in))
         logging.info("Loading model from '{}'".format(self.model_path))
-        logging.info("Writing images and json files to '{}'".format(self.output_folder))
+        logging.info(
+            "Writing images and json files to '{}'".format(self.output_folder))
         logging.info("Batch size: {}".format(self.batch_size))
 
     @staticmethod
@@ -171,19 +171,21 @@ class GeneratorInference:
                         # Batch ids is a list where each entry is a list
                         # with a single id
                         image_ids = [id[0].decode('utf-8') for id in
-                                         batch_ids]
+                                     batch_ids]
                         # Here we generate the output images
                         generated = sess.run(output_tensor, feed_dict={
-                                        input_tensor: batch_eyes_clean
-                                    })
+                            input_tensor: batch_eyes_clean
+                        })
 
                         # We save the translated images
                         self.save_images(generated, image_ids)
 
                         # Save the clean (unchanged) images
-                        encoded_tensor = self.get_encoded_tensor(batch_eyes_clean)
+                        encoded_tensor = self.get_encoded_tensor(
+                            batch_eyes_clean)
                         images_clean = sess.run(encoded_tensor)
-                        self.save_images(images_clean, image_ids, suffix="_clean")
+                        self.save_images(images_clean, image_ids,
+                                         suffix="_clean")
 
                         # Save the annotations
                         self.save_annotations(entry_evaluated)

@@ -8,6 +8,7 @@ class GeneratorExport:
     """ Freeze variables and convert 2 generator networks to 2 GraphDef files.
     This makes file size smaller and can be used for inference in production.
     """
+
     def __init__(self, checkpoint_dir, image_size, batch_size, norm, ngf, rgb):
         """
         Args:

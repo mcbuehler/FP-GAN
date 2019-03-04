@@ -8,6 +8,7 @@ class Generator:
     """
     Generator for FP-GAN
     """
+
     def __init__(self, name, is_training, ngf=64, norm='instance',
                  image_size=None, rgb=True):
         """

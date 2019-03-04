@@ -1,8 +1,9 @@
 import h5py
-import tensorflow as tf
-from input.preprocessing import MPIIPreprocessor
-from input.base_dataset import BaseDataset
 import numpy as np
+import tensorflow as tf
+
+from input.base_dataset import BaseDataset
+from input.preprocessing import MPIIPreprocessor
 
 
 class MPIIGenerator:

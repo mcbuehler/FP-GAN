@@ -88,7 +88,9 @@ class GazeNetInference:
     """
     Run inference on a GazeNet
     """
-    def __init__(self, sess, checkpoint_path, batch_size, image_size, norm, normalise_gaze, name):
+
+    def __init__(self, sess, checkpoint_path, batch_size, image_size, norm,
+                 normalise_gaze, name):
         self.sess = sess
         self.checkpoint_path = checkpoint_path
         self.gazenet = GazeNet(
@@ -114,7 +116,7 @@ class GazeNetInference:
                                     *self.gazenet.image_size, 1)
                                    )
         out_tensor = self.gazenet.forward(in_tensor, mode=Mode.TEST,
-                                     is_training=False)
+                                          is_training=False)
         return in_tensor, out_tensor
 
     def predict_gaze(self, images_preprocessed):
@@ -129,5 +131,6 @@ class GazeNetInference:
         """
         restore_model(self.checkpoint_path, self.sess, self.gazenet.name)
         gaze_pred = self.sess.run(self.out_tensor,
-                             feed_dict={self.in_tensor: images_preprocessed})
+                                  feed_dict={
+                                      self.in_tensor: images_preprocessed})
         return gaze_pred

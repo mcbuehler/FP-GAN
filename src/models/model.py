@@ -2,12 +2,10 @@ import tensorflow as tf
 
 import util.ops as ops
 import util.utils as utils
-from models.generator import Generator
-from models.discriminator import Discriminator
 from input.dataset_manager import DatasetManager
-from util.enum_classes import DatasetClass as DS
-from util.enum_classes import Mode
-
+from models.discriminator import Discriminator
+from models.generator import Generator
+from util.enum_classes import DatasetClass as DS, Mode
 
 REAL_LABEL = 0.9
 
@@ -19,6 +17,7 @@ class CycleGAN:
     to the real domain and vice-versa. Please refer to the report for more
     details.
     """
+
     def __init__(self,
                  S_train_file='',
                  R_train_file='',
@@ -375,7 +374,8 @@ class CycleGAN:
 
         """
         x_gaze = self.gazenet.forward(x, mode=Mode.TEST, is_training=False)
-        fake_y_gaze = self.gazenet.forward(fake_y, mode=Mode.TEST, is_training=False)
+        fake_y_gaze = self.gazenet.forward(fake_y, mode=Mode.TEST,
+                                           is_training=False)
         loss = tf.reduce_mean(tf.squared_difference(x_gaze, fake_y_gaze))
         tf.summary.scalar('loss/{}/gaze'.format(generator_name), loss)
         return self.lambdas_features['gaze'] * loss
@@ -399,8 +399,9 @@ class CycleGAN:
         fake_y_output, _, _ = self.elg.build_model(fake_y)
         # We want both coordinates be in the range [0,1]
         # So we divide by image size (36,60)
-        x_output_normalised = x_output['landmarks']/self.image_size
-        fake_y_output_normalised = fake_y_output['landmarks']/self.image_size
-        loss = tf.reduce_mean(tf.squared_difference(x_output_normalised, fake_y_output_normalised))
+        x_output_normalised = x_output['landmarks'] / self.image_size
+        fake_y_output_normalised = fake_y_output['landmarks'] / self.image_size
+        loss = tf.reduce_mean(tf.squared_difference(x_output_normalised,
+                                                    fake_y_output_normalised))
         tf.summary.scalar('loss/{}/landmarks'.format(generator_name), loss)
         return self.lambdas_features['landmarks'] * loss

@@ -203,7 +203,7 @@ class ELG:
                                                    self._hg_num_feature_maps,
                                                    self._hg_num_feature_maps,
                                                    name='after_hg_%d' % (
-                                                   j + 1))
+                                                       j + 1))
             x_now = self._apply_conv(x_now, self._hg_num_feature_maps,
                                      kernel_size=1, stride=1)
             x_now = self._apply_bn(x_now)
