@@ -19,11 +19,11 @@ A report explaining this method in detail will be uploaded soon.
 ## Folder Structure
 The ```src``` folder contains the following sub-folders.
 
-* input: dataset classes and preprocessing scripts
-* models: eye gaze estimation models, GAN models (Generator, Discriminator, Feature Models) and scripts for model export / inference
-* run: scripts for running model training, inference, testing, visualisations
-* util: various helper scripts
-* visualisations: various visualisation scripts
+* ```input```: dataset classes and preprocessing scripts
+* ```models```: eye gaze estimation models, GAN models (Generator, Discriminator, Feature Models) and scripts for model export / inference
+* ```run```: scripts for running model training, inference, testing, visualisations
+* ```util```: various helper scripts
+* ```visualisations```: various visualisation scripts
 
 ## References
 
