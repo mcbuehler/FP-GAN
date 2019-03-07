@@ -17,7 +17,7 @@ class BaseDataset:
     N = None
 
     def __init__(self, path_input, image_size=(72, 120), batch_size=32,
-                 rgb=True, shuffle=True, buffer_size=1000, testing=False,
+                 rgb=True, shuffle=True, buffer_size=10, testing=False,
                  repeat=True, num_parallel_calls=None, drop_remainder=False,
                  filter_gaze=False, normalise_gaze=False,
                  do_augmentation=False):
