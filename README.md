@@ -66,7 +66,7 @@ The `src` folder contains the following sub-folders.
 
 5. Translate images
 
- 5.1 Update the config file
+   5.1 Update the config file
    Before running the image translation, you need to update the config file with the newly trained model.
 
    We recommend copying the DEFAULT section and giving it a new name, e.g. `MYFPGAN`.
@@ -74,7 +74,7 @@ The `src` folder contains the following sub-folders.
    For example:
    ```checkpoint_folder=../checkpoints/20190113-1455```
 
- 5.2 Run the translations
+   5.2 Run the translations
 
    This will create subfolders in the FP-GAN checkpoint folder. Those subfolders will contain the refined images.
 
