@@ -4,7 +4,7 @@ This repository contains a re-implementation of the model proposed by Lee et al.
 
 As an extension, we added a feature preserving cost function. We preserve eye gaze directions, as well as regional landmarks when training the image translation networks.
 
-A report explaining this method in detail will be uploaded soon.
+Please a have look at the [report](documentation/fp-gan_report.pdf) for a detailed description about the experiments and results.
 
 Repository-URL: [https://github.com/mbbuehler/FP-GAN](https://github.com/mbbuehler/FP-GAN)
 
@@ -50,7 +50,7 @@ For more detailed step by step instructions see below.
 
 The `cfg` folder contains the config files (`.ini`) for the FP-GAN and the gaze estimator networks.
 
-The folder `documentation` includes a detailed report and some illustrations.
+The folder `documentation` includes a detailed [report](documentation/fp-gan_report.pdf) and some illustrations.
 
 The `src` folder contains the source code. These are the subfolders:
 
