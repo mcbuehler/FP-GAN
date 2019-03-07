@@ -19,6 +19,7 @@ Repository-URL: [https://github.com/mbbuehler/FP-GAN](https://github.com/mbbuehl
 
 ## Quick Start
 For more detailed step by step instructions see below.
+
 0. Install requirements
 1. Download the [datasets](http://mbuehler.ch/public_downloads/fpgan/data.zip): MPIIFaceGaze and UnityEyes
 2. Create a config file for the FP-GAN
