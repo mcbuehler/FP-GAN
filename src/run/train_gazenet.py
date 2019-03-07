@@ -138,13 +138,14 @@ def train():
         else:
             logging.info("Training new model. Checkpoint directory: {}".format(
                 checkpoints_dir))
-            # We copy config file
-            shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir,
-                                                       "{}__{}.ini".format(
-                                                           model_name,
-                                                           FLAGS.section)))
             sess.run(tf.global_variables_initializer())
             step = 0
+
+        # We copy config file
+        shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir,
+                                                   "{}__{}.ini".format(
+                                                       model_name,
+                                                       FLAGS.section)))
 
         coord = tf.train.Coordinator()
 

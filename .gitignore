@@ -112,3 +112,4 @@ checkpoints_*
 visualisations/*.png
 
 outputs_elg
+models

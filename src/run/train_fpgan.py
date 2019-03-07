@@ -8,6 +8,7 @@ CUDA_VISIBLE_DEVICES=6 python run/train_fpgan.py --config ../config/fpgan_ege.in
 
 import logging
 import os
+import shutil
 
 import tensorflow as tf
 from datetime import datetime
@@ -83,6 +84,12 @@ def train():
     except os.error:
         pass
 
+    # We copy config file
+    shutil.copyfile(FLAGS.config, os.path.join(checkpoints_dir,
+                                               "{}__{}.ini".format(
+                                                   gan_name,
+                                                   FLAGS.section)))
+
     graph = tf.Graph()
     with tf.Session(graph=graph) as sess:
         with graph.as_default():
@@ -104,7 +111,8 @@ def train():
                 tf_session=sess,
                 filter_gaze=filter_gaze,
                 ege_config=ege_config,
-                track_images=track_images
+                track_images=track_images,
+                track_histograms=track_histograms
             )
 
         # Get all losses and build optimizer
