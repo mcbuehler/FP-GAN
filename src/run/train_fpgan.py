@@ -50,6 +50,9 @@ def train():
     checkpoints_dir = cfg.get('checkpoint_folder')
     n_steps = cfg.get('n_steps')
     filter_gaze = cfg.get('filter_gaze')
+    # Tensorboard settings
+    track_images = cfg.get('track_images')
+    track_histograms = cfg.get('track_histograms')
 
     # If we do not want to train a new model, but rather continue
     # training one, we have a non-empty checkpoints_dir
@@ -100,7 +103,8 @@ def train():
                 ngf=ngf,
                 tf_session=sess,
                 filter_gaze=filter_gaze,
-                ege_config=ege_config
+                ege_config=ege_config,
+                track_images=track_images
             )
 
         # Get all losses and build optimizer

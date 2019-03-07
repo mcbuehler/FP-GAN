@@ -54,8 +54,7 @@ The `src` folder contains the following sub-folders.
 
    Make sure that the dataset (S, R) and feature model paths (ege_path, lm_path) are correct.
 
-3. Download and unzip the pre-trained models for feature consistency.
-    * Download [link](http://mbuehler.ch/public_downloads/fpgan/models.zip)
+3. Download and unzip the [pre-trained models](http://mbuehler.ch/public_downloads/fpgan/models.zip) for feature consistency.
 
    Optionally, re-train the models for eye gaze and/or landmarks consistency.
 

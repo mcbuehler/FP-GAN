@@ -34,7 +34,9 @@ class CycleGAN:
                  ngf=64,
                  tf_session=None,
                  filter_gaze=False,
-                 ege_config=None
+                 ege_config=None,
+                 track_images=True,
+                 track_histograms=True
                  ):
         """
         Args:
@@ -56,6 +58,10 @@ class CycleGAN:
           tf_session: tensorflow session. Needed for loading data sources.
           filter_gaze: whether to restrict eye gaze range
           ege_config: config of eye gaze estimator
+          track_images: Whether to save generated images during training
+            (in tensorboard)
+          track_histograms:  Whether to save summary histograms during training
+            (in tensorboard)
         """
         self.lambda1 = lambda1
         self.lambda2 = lambda2
@@ -70,6 +76,9 @@ class CycleGAN:
         self.S_train_file = S_train_file
         self.R_train_file = R_train_file
         self.tf_session = tf_session
+        self.track_images = track_images
+        self.track_histograms = track_histograms
+
         if rgb:
             input_shape = [batch_size, *image_size, 3]
         else:
@@ -189,11 +198,6 @@ class CycleGAN:
                                            use_lsgan=self.use_lsgan)
 
         # summaries
-        tf.summary.histogram('D_R/true', self.D_R(r))
-        tf.summary.histogram('D_R/fake', self.D_R(self.G(s)))
-        tf.summary.histogram('D_S/true', self.D_S(s))
-        tf.summary.histogram('D_S/fake', self.D_S(self.F(r)))
-
         tf.summary.scalar('loss/G', G_gan_loss)
         tf.summary.scalar('loss/G_feature', G_feature_loss)
         tf.summary.scalar('loss/D_R', D_R_loss)
@@ -202,14 +206,21 @@ class CycleGAN:
         tf.summary.scalar('loss/D_S', D_S_loss)
         tf.summary.scalar('loss/cycle', cycle_loss)
 
-        tf.summary.image('S/input', utils.batch_convert2int(s))
-        tf.summary.image('S/generated', utils.batch_convert2int(self.G(s)))
-        tf.summary.image('S/reconstruction',
-                         utils.batch_convert2int(self.F(self.G(s))))
-        tf.summary.image('R/input', utils.batch_convert2int(r))
-        tf.summary.image('R/generated', utils.batch_convert2int(self.F(r)))
-        tf.summary.image('R/reconstruction',
-                         utils.batch_convert2int(self.G(self.F(r))))
+        if self.track_histograms:
+            tf.summary.histogram('D_R/true', self.D_R(r))
+            tf.summary.histogram('D_R/fake', self.D_R(self.G(s)))
+            tf.summary.histogram('D_S/true', self.D_S(s))
+            tf.summary.histogram('D_S/fake', self.D_S(self.F(r)))
+
+        if self.track_images:
+            tf.summary.image('S/input', utils.batch_convert2int(s))
+            tf.summary.image('S/generated', utils.batch_convert2int(self.G(s)))
+            tf.summary.image('S/reconstruction',
+                             utils.batch_convert2int(self.F(self.G(s))))
+            tf.summary.image('R/input', utils.batch_convert2int(r))
+            tf.summary.image('R/generated', utils.batch_convert2int(self.F(r)))
+            tf.summary.image('R/reconstruction',
+                             utils.batch_convert2int(self.G(self.F(r))))
 
         return G_loss, D_R_loss, F_loss, D_S_loss, fake_r, fake_s
 
