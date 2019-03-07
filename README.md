@@ -19,7 +19,8 @@ Repository-URL: [https://github.com/mbbuehler/FP-GAN](https://github.com/mbbuehl
 
 ## Quick Start
 For more detailed step by step instructions see below.
-1. Download the datasets: MPIIFaceGaze and UnityEyes
+0. Install requirements
+1. Download the [datasets](http://mbuehler.ch/public_downloads/fpgan/data.zip): MPIIFaceGaze and UnityEyes
 2. Create a config file for the FP-GAN
 3. (optional) Train the feature consistency models for eye gaze and/or landmarks consistency
 3. Train the FP-GAN model
@@ -37,28 +38,28 @@ The `src` folder contains the following sub-folders.
 * ```visualisations```: various visualisation scripts
 
 ## Setup
+0. Install requirements
+```pip install -r requirements.txt ```
+
 1. Download and prepare the datasets
 
-1.1 Download the ready-to-use dataset for [MPIIFaceGaze](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) dataset from [here](...).
+Download the ready-to-use dataset for [MPIIFaceGaze](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) and [UnityEyes](https://www.cl.cam.ac.uk/research/rainbow/projects/unityeyes/) from [here](http://mbuehler.ch/public_downloads/fpgan/data.zip).
 
 As an alternative, you can pre-process the data yourself. Download it from the [MPIIFaceGaze website](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) and convert it to an h5 File with one group per person (e.g. 'p01'). For each per person add a sub group for "image" (the eye image), "gaze" (the gaze direction in 2D) and "head" (the head pose in 2D). You can find the pre-processing script that we used in our experiments on [Bitbucket](https://bitbucket.org/swook/preprocess4gaze).
-
-1.2 Download the ready-to-use UnityEyes dataset from [here](...).
 
 If you want to generate your own UnityEyes dataset, download [UnityEyes](https://www.cl.cam.ac.uk/research/rainbow/projects/unityeyes/) and follow their instructions. We recommend a size of at least 100,000 images.
 
 2. Update [sample config file](config/fpgan_example.ini) for the FP-GAN to your needs.
 
 3. Download the pre-trained models for feature consistency.
- * Download link for [eye gaze estimator]()
- * Download link for [landmarks detector]()
+ * Download [link](http://mbuehler.ch/public_downloads/fpgan/models.zip)
 
  Optionally, re-train the models for eye gaze and/or landmarks consistency.
 
 4. Train an FP-GAN model
 
 Example command:
-```python
+```
 python run/train_fpgan.py --config ../config/fpgan_example.ini --section DEFAULT
 ```
 
@@ -76,7 +77,7 @@ For example:
 
 This will create subfolders in the FP-GAN checkpoint folder. Those subfolders will contain the refined images.
 
-```python
+```
 python run/run_fpgan_translations.py
     --config ../config/fpgan_example.ini
     --section MYFPGAN
@@ -101,9 +102,8 @@ I am happy to get your constructive feedback. Please don't hesitate to contact m
 ## References
 
 * LEE , K., KIM , H., AND SUH , C. 2018. Simulated+unsupervised learning with adaptive data
-generation and bidirectional mappings. In International Conference on Learning Represen-
-tations.
-* WOOD , E., B ALTRUŠAITIS , T., M ORENCY , L.-P., R OBINSON , P., AND B ULLING , A. 2016.
+generation and bidirectional mappings. In International Conference on Learning Representations.
+* WOOD , E., B ALTRUŠAITIS , T., MORENCY , L.-P., ROBINSON , P., AND BULLING , A. 2016.
 Learning an appearance-based gaze estimator from one million synthesised images. In Pro-
 ceedings of the Ninth Biennial ACM Symposium on Eye Tracking Research & Applications,
 131–138.
@@ -115,4 +115,3 @@ Workshops (CVPRW), 2017 IEEE Conference on, IEEE, 2299–2308.
 * ZHU, J., PARK, T., ISOLA, P., AND EFROS, A. A. 2017. Unpaired image-to-image translation
 using cycle-consistent adversarial networks. CoRR abs/1703.10593.
  [Website](https://junyanz.github.io/CycleGAN/)
-* CycleGAN paper: https://arxiv.org/abs/1703.10593
