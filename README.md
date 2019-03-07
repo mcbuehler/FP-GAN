@@ -22,10 +22,10 @@ For more detailed step by step instructions see below.
 0. Install requirements
 1. Download the [datasets](http://mbuehler.ch/public_downloads/fpgan/data.zip): MPIIFaceGaze and UnityEyes
 2. Create a config file for the FP-GAN
-3. (optional) Train the feature consistency models for eye gaze and/or landmarks consistency
-3. Train the FP-GAN model
-4. Translate images
-5. (optional) Create a config file for a gaze estimator. Then, train a gaze estimation network and run inference.
+3. Download the [pre-trained models](http://mbuehler.ch/public_downloads/fpgan/models.zip) for feature consistency
+4. Train the FP-GAN model
+5. Translate images
+6. (optional) Create a config file for a gaze estimator. Then, train a gaze estimation network and run inference.
 
 
 ## Folder Structure
