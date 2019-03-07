@@ -83,7 +83,8 @@ class BaseDataset:
             dataset = dataset.map(self._normalise_gaze)
 
         if self.shuffle:
-            dataset = dataset.shuffle(buffer_size=self.buffer_size)
+            dataset = dataset.shuffle(buffer_size=
+                                      self.buffer_size*self.batch_size)
         dataset = dataset.batch(self.batch_size,
                                 drop_remainder=self.drop_remainder)
         dataset = dataset.prefetch(self.buffer_size)
