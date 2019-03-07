@@ -12,8 +12,25 @@ Repository-URL: [https://github.com/mbbuehler/FP-GAN](https://github.com/mbbuehl
 
 ![Overall Architecture of FP-GAN](documentation/fp_gan_overall.png "Please refer to the report for a detailed description.")
 
+There are four domains, two of them
+represent the original images from MPIIGaze (R) and UnityEyes (S). The other two domains represent images produced by the generators G and F. We calculate the standard
+GAN loss from the discriminators (DS and DR). For the eye gaze consistency (L_eg) and
+landmark losses (L_lm), we trained two additional Convolutional Neural Networks. The
+identity-transform loss (L_id) can directly be calculated. The cycle-consistency loss (L_cyc) is
+being omitted in order to reduce cluttering. For an illustration, please refer to Fig. 3 of the
+original CycleGAN paper [Zhu et al. 2017].
+
 ## Qualitative Results
+Qualitative comparison of the translations. The leftmost columns correspond to the original images.
+Columns a) to d) correspond to the following settings: a) λ_id = 2, λ_eg = λ_lm = 0 b)
+λ_eg = 30, λ_id = λ_lm = 0 c) λ_lm = 15, λ_id = λ_eg = 0 d) λ_id = 5, λ_eg = 15, λ_lm = 0
+(failed). We observe that in column d), the weights of the feature losses were too high and
+therefore, the generator did not produce images that were optically different to the input
+images.
+
+### Real to Synthetic
 ![Qualitative results when translating from the real to the synthetic domain](documentation/compare_translations_r2s.png "Please refer to the report for a detailed description.")
+### Synthetic to Real
 ![Qualitative results when translating from the synthetic to the real domain](documentation/compare_translations_s2r.png "Please refer to the report for a detailed description.")
 
 
@@ -30,11 +47,16 @@ For more detailed step by step instructions see below.
 
 
 ## Folder Structure
-The `src` folder contains the following sub-folders.
+
+The `cfg` folder contains the config files (`.ini`) for the FP-GAN and the gaze estimator networks.
+
+The folder `documentation` includes a detailed report and some illustrations.
+
+The `src` folder contains the source code. These are the subfolders:
 
 * ```input```: dataset classes and preprocessing scripts
 * ```models```: eye gaze estimation models, GAN models (Generator, Discriminator, Feature Models) and scripts for model export / inference
-* ```run```: scripts for running model training, inference, testing, visualisations
+* ```run```: scripts for running model training, inference, testing and visualisations
 * ```util```: various helper scripts
 * ```visualisations```: various visualisation scripts
 
