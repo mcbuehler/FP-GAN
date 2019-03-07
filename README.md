@@ -42,9 +42,9 @@ The `src` folder contains the following sub-folders.
 0. Install requirements
 ```pip install -r requirements.txt ```
 
-1. Download and prepare the datasets
+1. Download and unzip the datasets
 
-   Download the ready-to-use dataset for [MPIIFaceGaze](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) and [UnityEyes](https://www.cl.cam.ac.uk/research/rainbow/projects/unityeyes/) from [here](http://mbuehler.ch/public_downloads/fpgan/data.zip).
+   Download and unzip the ready-to-use datasets for [MPIIFaceGaze](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) and [UnityEyes](https://www.cl.cam.ac.uk/research/rainbow/projects/unityeyes/) from [here](http://mbuehler.ch/public_downloads/fpgan/data.zip).
 
    As an alternative, you can pre-process the data yourself. Download it from the [MPIIFaceGaze website](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/) and convert it to an h5 File with one group per person (e.g. 'p01'). For each per person add a sub group for "image" (the eye image), "gaze" (the gaze direction in 2D) and "head" (the head pose in 2D). You can find the pre-processing script that we used in our experiments on [Bitbucket](https://bitbucket.org/swook/preprocess4gaze).
 
@@ -52,14 +52,16 @@ The `src` folder contains the following sub-folders.
 
 2. Update [sample config file](config/fpgan_example.ini) for the FP-GAN to your needs.
 
-3. Download the pre-trained models for feature consistency.
+   Make sure that the dataset (S, R) and feature model paths (ege_path, lm_path) are correct.
+
+3. Download and unzip the pre-trained models for feature consistency.
     * Download [link](http://mbuehler.ch/public_downloads/fpgan/models.zip)
 
    Optionally, re-train the models for eye gaze and/or landmarks consistency.
 
 4. Train an FP-GAN model
 
-   Example command:
+   Example command (run it from inside the `src` folder):
    ```
    python run/train_fpgan.py --config ../config/fpgan_example.ini --section DEFAULT
    ```
@@ -67,6 +69,7 @@ The `src` folder contains the following sub-folders.
 5. Translate images
 
    * Update the config file
+
       Before running the image translation, you need to update the config file with the newly trained model.
 
       We recommend copying the DEFAULT section and giving it a new name, e.g. `MYFPGAN`.
@@ -77,7 +80,7 @@ The `src` folder contains the following sub-folders.
    * Run the translations
 
       This will create subfolders in the FP-GAN checkpoint folder. Those subfolders will contain the refined images.
-
+      Run this from inside the `src` folder.
       ```
       python run/run_fpgan_translations.py
           --config ../config/fpgan_example.ini
@@ -92,7 +95,7 @@ The `src` folder contains the following sub-folders.
    path_test =  ../checkpoints/20190113-1455/refined_MPII2Unity
    dataset_class_test = refined
    ```
-   Then, run the script:
+   Then, run the script (inside the `src` folder):
    ```python run/run_test_gazenet.py --config ../config/gazenet_example.ini --section MYGAZENET```
 
 ## Feedback
