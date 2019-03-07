@@ -103,7 +103,16 @@ I am happy to get your constructive feedback. Please don't hesitate to contact m
 * LEE , K., KIM , H., AND SUH , C. 2018. Simulated+unsupervised learning with adaptive data
 generation and bidirectional mappings. In International Conference on Learning Represen-
 tations.
+* WOOD , E., B ALTRUŠAITIS , T., M ORENCY , L.-P., R OBINSON , P., AND B ULLING , A. 2016.
+Learning an appearance-based gaze estimator from one million synthesised images. In Pro-
+ceedings of the Ninth Biennial ACM Symposium on Eye Tracking Research & Applications,
+131–138.
+[Website](https://www.cl.cam.ac.uk/research/rainbow/projects/unityeyes/)
+* ZHANG , X., SUGANO , Y., FRITZ , M., AND BULLING , A. 2017. It’s written all over your face:
+Full-face appearance-based gaze estimation. In Computer Vision and Pattern Recognition
+Workshops (CVPRW), 2017 IEEE Conference on, IEEE, 2299–2308.
+[Website](https://www.mpi-inf.mpg.de/departments/computer-vision-and-multimodal-computing/research/gaze-based-human-computer-interaction/its-written-all-over-your-face-full-face-appearance-based-gaze-estimation/)
 * ZHU, J., PARK, T., ISOLA, P., AND EFROS, A. A. 2017. Unpaired image-to-image translation
 using cycle-consistent adversarial networks. CoRR abs/1703.10593.
+ [Website](https://junyanz.github.io/CycleGAN/)
 * CycleGAN paper: https://arxiv.org/abs/1703.10593
-* Official CycleGAN source code in Torch: https://github.com/junyanz/CycleGAN
