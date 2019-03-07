@@ -66,24 +66,24 @@ The `src` folder contains the following sub-folders.
 
 5. Translate images
 
-   5.1 Update the config file
-   Before running the image translation, you need to update the config file with the newly trained model.
+   * Update the config file
+      Before running the image translation, you need to update the config file with the newly trained model.
 
-   We recommend copying the DEFAULT section and giving it a new name, e.g. `MYFPGAN`.
-   Then, set the `checkpoint_folder` variable to the newly trained model.
-   For example:
-   ```checkpoint_folder=../checkpoints/20190113-1455```
+      We recommend copying the DEFAULT section and giving it a new name, e.g. `MYFPGAN`.
+      Then, set the `checkpoint_folder` variable to the newly trained model.
+      For example:
+      ```checkpoint_folder=../checkpoints/20190113-1455```
 
-   5.2 Run the translations
+   * Run the translations
 
-   This will create subfolders in the FP-GAN checkpoint folder. Those subfolders will contain the refined images.
+      This will create subfolders in the FP-GAN checkpoint folder. Those subfolders will contain the refined images.
 
-   ```
-   python run/run_fpgan_translations.py
-       --config ../config/fpgan_example.ini
-       --section MYFPGAN
-       --direction both
-   ```
+      ```
+      python run/run_fpgan_translations.py
+          --config ../config/fpgan_example.ini
+          --section MYFPGAN
+          --direction both
+      ```
 
 6. (optional) Train your own gaze estimator or use the pre-trained one from above in order to estimate eye gaze performance.
    For this you need to set the `path_test` and `dataset_class_test` in the config file and run the test script. Again, we recommend to copy the `DEFAULT` section for this.
