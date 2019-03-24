@@ -72,14 +72,14 @@ def run_inference(cfg, S2R=True):
     if S2R:
         path_in = cfg.get("S")
         model_path = cfg.get("path_model_s2r")
-        output_folder = cfg.get('path_refined_r2s')
+        output_folder = cfg.get('path_refined_s2r')
         inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
                                        dataset_class=DS.UNITY, **shared_args)
         inference.run()
     else:
         path_in = cfg.get("R")
         model_path = cfg.get("path_model_r2s")
-        output_folder = cfg.get('path_refined_s2r')
+        output_folder = cfg.get('path_refined_r2s')
         inference = GeneratorInference(path_in=path_in, model_path=model_path, output_folder=output_folder,
                                        dataset_class=DS.MPII, **shared_args)
         inference.run()
