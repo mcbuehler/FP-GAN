@@ -6,7 +6,7 @@ As an extension, we added a feature preserving cost function. We preserve eye ga
 
 Please a have look at the [report](documentation/fp-gan_report.pdf) for a detailed description about the experiments and results.
 
-Repository-URL: [https://github.com/mbbuehler/FP-GAN](https://github.com/mbbuehler/FP-GAN)
+Repository-URL: [https://github.com/mcbuehler/FP-GAN](https://github.com/mbbuehler/FP-GAN)
 
 ## Overall Architecture
 
